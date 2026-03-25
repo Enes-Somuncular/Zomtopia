@@ -38,12 +38,12 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     private int mouseScreenX, mouseScreenY;
     private boolean leftHeld, rightHeld;
     private long lastPlacementTime = 0;
-    private static final long PLACEMENT_COOLDOWN = 160; // 160 for faster feel
+    private static final long PLACEMENT_COOLDOWN = 180;
     private static final int T = World.TILE_SIZE;
 
     // Snapshot of mouse target for sync
     private int targetTX, targetTY;
-    private boolean isInRange;
+    private boolean isInRangeBreak, isInRangePlace;
 
     public GamePanel() {
         setPreferredSize(new Dimension(800, 600));
@@ -89,8 +89,10 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             if (rightHeld && !inventoryOpen) {
                 long now = System.currentTimeMillis();
                 if (now - lastPlacementTime >= PLACEMENT_COOLDOWN) {
-                    handleRightClickPlacement(targetTX, targetTY);
-                    lastPlacementTime = now;
+                    if (isInRangePlace) {
+                        handleRightClickPlacement(targetTX, targetTY);
+                        lastPlacementTime = now;
+                    }
                 }
             }
             repaint();
@@ -124,12 +126,13 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         double tyC = targetTY * T + T / 2.0;
         double dist = Math.sqrt(Math.pow(px - txC, 2) + Math.pow(py - tyC, 2));
         
-        isInRange = (dist <= 5.0 * T);
+        isInRangeBreak = (dist <= 3.0 * T);
+        isInRangePlace = (dist <= 4.0 * T);
 
         if (leftHeld && !inventoryOpen) {
             player.startPunch();
             
-            if (!isInRange) {
+            if (!isInRangeBreak) {
                 resetBreak();
                 return;
             }
@@ -246,8 +249,11 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             }
         }
 
-        // --- Hover outline (Synced from decision) ---
-        if (isInRange && !inventoryOpen) {
+        // --- Hover outline (Contextual range) ---
+        Tile fg = world.getFg(targetTX, targetTY);
+        boolean showHover = (fg != Tile.AIR) ? isInRangeBreak : isInRangePlace;
+
+        if (showHover && !inventoryOpen) {
             int hsx = camera.toScreenX(targetTX * T);
             int hsy = camera.toScreenY(targetTY * T);
             g2.setColor(new Color(255, 255, 255, 80));
@@ -493,8 +499,8 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         g2.setFont(new Font("Arial", Font.BOLD, 12));
         g2.drawString("WASD / ← →   Hareket & Zıpla", 16, 26);
         g2.drawString("SHIFT: Koşma (Stamina)", 16, 44);
-        g2.drawString("Sol Tık (Basılı): Kır (Menzil: 4.5)", 16, 62);
-        g2.drawString("Sağ Tık: Blok Yerleştir (Menzil: 4.5)", 16, 80);
+        g2.drawString("Sol Tık (Basılı): Kır (Menzil: 3)", 16, 62);
+        g2.drawString("Sağ Tık: Blok Yerleştir (Menzil: 4)", 16, 80);
         g2.drawString("Scroll / 1-5: Blok Seç", 16, 98);
     }
 
@@ -680,7 +686,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         } else if (e.getButton() == MouseEvent.BUTTON3) {
             rightHeld = true;
             // Immediate placement on first press if in range
-            if (isInRange && !inventoryOpen) {
+            if (isInRangePlace && !inventoryOpen) {
                 handleRightClickPlacement(targetTX, targetTY);
                 lastPlacementTime = System.currentTimeMillis();
             }
