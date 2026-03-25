@@ -538,11 +538,12 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             boolean isFull = i < fullHearts;
             boolean isHalf = (i == fullHearts && hasHalf == 1);
 
-            // Base heart background (empty look for half/empty, filled look for full).
+            // Base heart background.
+            // Empty/half hearts should be clearly "not full" -> make them mostly transparent.
             if (isFull) {
                 g2.setColor(new Color(220, 40, 40, filledAlpha));
             } else {
-                g2.setColor(new Color(60, 20, 20, 150));
+                g2.setColor(new Color(60, 20, 20, 25));
             }
 
             g2.fillRoundRect(hx, heartY, heartSize, heartSize, 4, 4);
@@ -556,8 +557,8 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                 g2.setClip(oldClip);
             }
 
-            // Outline
-            g2.setColor(new Color(255, 255, 255, 80));
+            // Outline (keep it visible but subtle)
+            g2.setColor(new Color(255, 255, 255, isFull ? 90 : 55));
             g2.drawRoundRect(hx, heartY, heartSize, heartSize, 4, 4);
         }
 
