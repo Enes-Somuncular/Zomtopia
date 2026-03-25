@@ -808,6 +808,111 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         }
     }
 
+    private String getTileDisplayName(Tile tile) {
+        if (tile == null) return "";
+        switch (tile) {
+            case DIRT: return "TOPRAK";
+            case GRASS: return "OT";
+            case ROCK: return "TAŞ";
+            case WOOD: return "AĞAÇ";
+            case LEAVES: return "YAPRAK";
+            case BEDROCK: return "ZIRHLI";
+            case RED_SHIRT: return "KIRMIZI GÖMLEK";
+            case BLUE_HAT: return "MAVİ ŞAPKA";
+            case WINGS: return "KANATLAR";
+            case DARK_MASK: return "SİYAH MASKE";
+            case JEANS: return "JEAN";
+            case SNEAKERS: return "AYAKKABI";
+            default: return tile.name();
+        }
+    }
+
+    private void drawInventoryDemoIcon(Graphics2D g2, ItemStack stack, int x, int y, int size) {
+        if (stack == null || stack.tile == Tile.AIR) return;
+        Tile tile = stack.tile;
+
+        Color base = stack.isBackground ? tile.color.darker().darker() : tile.color;
+        Color outline = base.darker();
+
+        int padding = Math.max(2, size / 10);
+        int inner = size - padding * 2;
+
+        // Background tiles (walkthrough) -> more faded demo icons
+        int alpha = stack.isBackground ? 140 : 220;
+        base = new Color(base.getRed(), base.getGreen(), base.getBlue(), alpha);
+
+        g2.setStroke(new BasicStroke(Math.max(1f, size / 14f)));
+
+        if (tile.category == Tile.Category.BLOCK) {
+            // Simple isometric-ish cube
+            g2.setColor(base);
+            g2.fillRect(x + padding, y + padding + inner/6, inner, inner - inner/6);
+            g2.setColor(base.darker());
+            g2.drawRect(x + padding, y + padding + inner/6, inner, inner - inner/6);
+            g2.setColor(base);
+            g2.fillRoundRect(x + padding, y + padding, inner, inner/3, 4, 4);
+            g2.setColor(outline);
+            g2.drawRoundRect(x + padding, y + padding, inner, inner/3, 4, 4);
+            g2.setColor(Color.WHITE);
+            g2.setFont(new Font("Arial", Font.BOLD, Math.max(8, size / 6)));
+            g2.drawString(String.valueOf(getTileDisplayName(tile).charAt(0)), x + padding + inner/3, y + padding + inner/2);
+            return;
+        }
+
+        // Wearables: simple category-specific glyphs
+        g2.setColor(base);
+        g2.setPaintMode();
+        switch (tile.category) {
+            case HAT:
+                // brim
+                g2.drawLine(x + padding, y + padding + inner/3, x + size - padding, y + padding + inner/3);
+                g2.setColor(base.brighter());
+                g2.fillRoundRect(x + padding, y + padding, inner, inner/4, 3, 3);
+                break;
+            case MASK:
+                g2.fillOval(x + padding, y + padding, inner, inner);
+                g2.setColor(Color.BLACK);
+                int eyeR = Math.max(2, inner / 10);
+                g2.fillOval(x + padding + inner/4, y + padding + inner/3, eyeR, eyeR);
+                g2.fillOval(x + padding + 3*inner/4 - eyeR, y + padding + inner/3, eyeR, eyeR);
+                break;
+            case SHIRT:
+                g2.fillRect(x + padding + inner/3, y + padding, inner/3, inner);
+                g2.fillRoundRect(x + padding, y + padding + inner/2, inner, inner/2, 6, 6);
+                break;
+            case PANTS:
+                g2.fillRoundRect(x + padding + inner/4, y + padding + inner/4, inner/2, inner/2 + inner/4, 6, 6);
+                // belt
+                g2.fillRect(x + padding + inner/4, y + padding + inner/4 - inner/10, inner/2, Math.max(2, inner/10));
+                break;
+            case SHOES:
+                g2.fillRoundRect(x + padding, y + padding + inner/2, inner/2, inner/3, 4, 4);
+                g2.fillRoundRect(x + padding + inner/2 - inner/8, y + padding + inner/2, inner/2, inner/3, 4, 4);
+                break;
+            case BACK:
+                int wingW = inner/2;
+                g2.setColor(base.brighter());
+                g2.fillPolygon(
+                    new int[]{x + padding, x + padding + wingW, x + padding + wingW/2},
+                    new int[]{y + padding + inner/2, y + padding + padding, y + padding + inner/2},
+                    3
+                );
+                g2.fillPolygon(
+                    new int[]{x + size - padding, x + size - padding - wingW, x + size - padding - wingW/2},
+                    new int[]{y + padding + inner/2, y + padding + padding, y + padding + inner/2},
+                    3
+                );
+                break;
+            default:
+                // Fallback
+                g2.drawRect(x + padding, y + padding, inner, inner);
+                break;
+        }
+
+        g2.setColor(outline);
+        g2.drawRoundRect(x + padding, y + padding, inner, inner, 6, 6);
+    }
+
     private void drawExpandedInventory(Graphics2D g2) {
         InventoryLayout l = computeInventoryLayout();
         
@@ -842,11 +947,27 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             g2.drawRoundRect(sx, sy, l.slotSize, l.slotSize, 10, 10);
             
             if (stack != null && stack.tile != Tile.AIR) {
-                g2.setColor(stack.isBackground ? stack.tile.color.darker() : stack.tile.color);
-                g2.fillRoundRect(sx + 6, sy + 6, l.slotSize - 12, l.slotSize - 12, 6, 6);
+                int iconSize = Math.max(16, l.slotSize - 30);
+                int iconX = sx + (l.slotSize - iconSize) / 2;
+                int iconY = sy + 6;
+
+                drawInventoryDemoIcon(g2, stack, iconX, iconY, iconSize);
+
                 g2.setColor(Color.WHITE);
                 g2.setFont(new Font("Arial", Font.BOLD, 11));
-                g2.drawString(String.valueOf(stack.amount), sx + 5, sy + 14);
+                g2.drawString(String.valueOf(stack.amount), sx + 6, sy + 14);
+
+                // Name under icon (inside the slot).
+                g2.setFont(new Font("Arial", Font.BOLD, 9));
+                String name = getTileDisplayName(stack.tile);
+                if (stack.isBackground) name += " (ARKA)";
+                // Fit: simple truncation based on slot width.
+                int maxWidth = l.slotSize - 10;
+                FontMetrics fm = g2.getFontMetrics();
+                while (name.length() > 1 && fm.stringWidth(name) > maxWidth) {
+                    name = name.substring(0, name.length() - 1);
+                }
+                g2.drawString(name, sx + 5, sy + l.slotSize - 6);
             }
         }
         
@@ -881,11 +1002,28 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             
             g2.setColor(new Color(200, 200, 200, 150));
             g2.setFont(new Font("Arial", Font.PLAIN, 10));
-            g2.drawString(eqLabels[i], sx, sy - 4);
+            // Slot role label (when empty) lives near top-left.
+            if (stack == null || stack.tile == Tile.AIR) {
+                g2.drawString(eqLabels[i], sx + 6, sy + 14);
+            }
             
             if (stack != null && stack.tile != Tile.AIR) {
-                g2.setColor(stack.tile.color);
-                g2.fillRoundRect(sx + 10, sy + 10, l.eqSlotSize - 20, l.eqSlotSize - 20, 6, 6);
+                int iconSize = Math.max(14, l.eqSlotSize - 30);
+                int iconX = sx + (l.eqSlotSize - iconSize) / 2;
+                int iconY = sy + 6;
+
+                drawInventoryDemoIcon(g2, stack, iconX, iconY, iconSize);
+
+                // Name under icon inside the slot.
+                g2.setColor(Color.WHITE);
+                g2.setFont(new Font("Arial", Font.BOLD, 9));
+                String name = getTileDisplayName(stack.tile);
+                int maxWidth = l.eqSlotSize - 10;
+                FontMetrics fm = g2.getFontMetrics();
+                while (name.length() > 1 && fm.stringWidth(name) > maxWidth) {
+                    name = name.substring(0, name.length() - 1);
+                }
+                g2.drawString(name, sx + 5, sy + l.eqSlotSize - 6);
             }
         }
     }
