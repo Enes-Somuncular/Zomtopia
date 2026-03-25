@@ -82,17 +82,13 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     }
 
     private void updateItems() {
-        double px = player.x + Player.W / 2.0;
-        double py = player.y + Player.H / 2.0;
-
         for (ItemEntity item : droppedItems) {
             item.update(world);
 
-            double dx = px - (item.x + ItemEntity.SIZE / 2.0);
-            double dy = py - (item.y + ItemEntity.SIZE / 2.0);
-            double distSq = dx * dx + dy * dy;
+            Rectangle itemRect   = new Rectangle((int) item.x, (int) item.y, ItemEntity.SIZE, ItemEntity.SIZE);
+            Rectangle playerRect = new Rectangle((int) player.x, (int) player.y, Player.W, Player.H);
 
-            if (distSq < Math.pow(World.TILE_SIZE * 2.0, 2)) {
+            if (itemRect.intersects(playerRect)) {
                 if (player.getInventory().addItem(item.tile, 1, item.isBackground)) {
                     droppedItems.remove(item);
                 }
