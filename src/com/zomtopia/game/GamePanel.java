@@ -22,23 +22,24 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     private final Camera camera;
     private Timer gameTimer;
 
-    // Hotbar selection
+    // Gameplay State
     private int selectedSlot = 0;
-
-    // Block breaking state
     private int breakX = -1, breakY = -1;
-    private float breakProgress = 0;        // 0.0 – 1.0
-    private static final float BREAK_SPEED = 0.065f;  // per tick
+    private float breakProgress = 0;
+    private static final float BREAK_SPEED = 0.065f;
 
     // Items and Inventory UI
     private final List<ItemEntity> droppedItems = new CopyOnWriteArrayList<>();
     private boolean inventoryOpen = false;
-    private com.zomtopia.game.inventory.ItemStack draggedStack = null;
     private int draggedSourceIdx = -1;
+    private ItemStack draggedStack = null;
 
-    // Mouse state
+    // Input state
     private int mouseScreenX, mouseScreenY;
-    private boolean leftHeld;
+    private boolean leftHeld, rightHeld;
+    private long lastPlacementTime = 0;
+    private static final long PLACEMENT_COOLDOWN = 180;
+    private static final int T = World.TILE_SIZE;
 
     public GamePanel() {
         setPreferredSize(new Dimension(800, 600));
@@ -80,6 +81,17 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             updateItems();
             camera.follow(player.x + Player.W / 2.0, player.y + Player.H / 2.0);
             repaint();
+
+            // Continuous placement with cooldown
+            if (rightHeld && !inventoryOpen) {
+                long now = System.currentTimeMillis();
+                if (now - lastPlacementTime >= PLACEMENT_COOLDOWN) {
+                    int tx = camera.toTileX(mouseScreenX);
+                    int ty = camera.toTileY(mouseScreenY);
+                    handleRightClickPlacement(tx, ty);
+                    lastPlacementTime = now;
+                }
+            }
         });
         gameTimer.start();
     }
@@ -107,14 +119,14 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         if (leftHeld) {
             // Animasyon tetikle
             player.startPunch();
-            // Distance check (3 blocks)
+            // Distance check (4.5 blocks)
             double px = player.x + Player.W / 2.0;
             double py = player.y + Player.H / 2.0;
             double txC = tx * World.TILE_SIZE + World.TILE_SIZE / 2.0;
             double tyC = ty * World.TILE_SIZE + World.TILE_SIZE / 2.0;
             double distBreak = Math.sqrt(Math.pow(px - txC, 2) + Math.pow(py - tyC, 2));
 
-            if (distBreak > 3.5 * World.TILE_SIZE) { // Allow up to 3 blocks + small buffer
+            if (distBreak > 4.5 * World.TILE_SIZE) { // Allow up to 4.5 blocks
                 resetBreak();
                 return;
             }
@@ -236,11 +248,11 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         int hoverTY = camera.toTileY(mouseScreenY);
         double px = player.x + Player.W / 2.0;
         double py = player.y + Player.H / 2.0;
-        double txC = hoverTX * T + T / 2.0;
-        double tyC = hoverTY * T + T / 2.0;
+        double txC = hoverTX * World.TILE_SIZE + World.TILE_SIZE / 2.0;
+        double tyC = hoverTY * World.TILE_SIZE + World.TILE_SIZE / 2.0;
         double distHover = Math.sqrt(Math.pow(px - txC, 2) + Math.pow(py - tyC, 2));
 
-        if (distHover <= 4.5 * T) {
+        if (distHover <= 4.5 * World.TILE_SIZE) {
             int hsx = camera.toScreenX(hoverTX * T);
             int hsy = camera.toScreenY(hoverTY * T);
             g2.setColor(new Color(255, 255, 255, 90));
@@ -328,13 +340,52 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         }
         
         g2.setStroke(new BasicStroke(1f));
-
+        
         drawDroppedItems(g2);
         drawHUD(g2);
         if (inventoryOpen) {
             drawExpandedInventory(g2);
             drawDraggedItem(g2);
         }
+    }
+
+    private void drawStickmanPreview(Graphics2D g2, int cx, int cy) {
+        g2.setStroke(new BasicStroke(4f));
+        g2.setColor(Color.WHITE);
+        
+        int headSize = 24;
+        int spineLen = 60;
+        
+        Inventory inv = player.getInventory();
+        ItemStack[] equip = inv.getEquipment();
+        
+        // Back
+        drawEquip(g2, equip[5], cx, cy - spineLen + 20, 0, false);
+        
+        g2.setColor(Color.WHITE);
+        // Head
+        g2.drawOval(cx - headSize/2, cy - spineLen - headSize, headSize, headSize);
+        // Gear
+        drawEquip(g2, equip[0], cx, cy - spineLen - headSize, headSize, true); // Hat
+        drawEquip(g2, equip[1], cx, cy - spineLen - headSize, headSize, true); // Mask
+        
+        // Spine
+        g2.setColor(Color.WHITE);
+        g2.drawLine(cx, cy - spineLen, cx, cy);
+        drawEquip(g2, equip[2], cx, cy - spineLen, spineLen, false); // Shirt
+        
+        // Arms
+        g2.drawLine(cx, cy - spineLen + 10, cx - 25, cy - spineLen + 30);
+        g2.drawLine(cx, cy - spineLen + 10, cx + 25, cy - spineLen + 30);
+        
+        // Legs
+        g2.drawLine(cx, cy, cx - 20, cy + 40);
+        g2.drawLine(cx, cy, cx + 20, cy + 40);
+        drawEquip(g2, equip[3], cx, cy, 30, false); // Pants
+        drawEquip(g2, equip[4], cx - 20, cy + 40, 0, false);
+        drawEquip(g2, equip[4], cx + 20, cy + 40, 0, false);
+        
+        g2.setStroke(new BasicStroke(1f));
     }
 
     private void drawDraggedItem(Graphics2D g2) {
@@ -447,8 +498,8 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         g2.setFont(new Font("Arial", Font.BOLD, 12));
         g2.drawString("WASD / ← →   Hareket & Zıpla", 16, 26);
         g2.drawString("SHIFT: Koşma (Stamina)", 16, 44);
-        g2.drawString("Sol Tık (Basılı): Kır (Menzil: 3)", 16, 62);
-        g2.drawString("Sağ Tık: Blok Yerleştir (Menzil: 4)", 16, 80);
+        g2.drawString("Sol Tık (Basılı): Kır (Menzil: 4.5)", 16, 62);
+        g2.drawString("Sağ Tık: Blok Yerleştir (Menzil: 4.5)", 16, 80);
         g2.drawString("Scroll / 1-5: Blok Seç", 16, 98);
     }
 
@@ -478,80 +529,93 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
 
     private void drawExpandedInventory(Graphics2D g2) {
         int w = 800, h = 600;
-        int invW = 540, invH = 380;
+        int invW = 740, invH = 480;
         int invX = (w - invW) / 2;
         int invY = (h - invH) / 2;
         
-        g2.setColor(new Color(40, 40, 40, 245));
-        g2.fillRoundRect(invX, invY, invW, invH, 15, 15);
-        g2.setColor(new Color(150, 150, 150));
-        g2.setStroke(new BasicStroke(2f));
-        g2.drawRoundRect(invX, invY, invW, invH, 15, 15);
-        g2.setStroke(new BasicStroke(1f));
-
-        int slotSize = 44;
-        int padding = 10;
+        // Background
+        g2.setColor(new Color(30, 30, 30, 248));
+        g2.fillRoundRect(invX, invY, invW, invH, 20, 20);
+        g2.setColor(new Color(150, 150, 200, 150));
+        g2.setStroke(new BasicStroke(3f));
+        g2.drawRoundRect(invX, invY, invW, invH, 20, 20);
+        
+        int slotSize = 48;
+        int padding = 8;
         Inventory inv = player.getInventory();
+        
+        // --- Left Section: Main Slots (4x10) ---
+        int gridX = invX + 25;
+        int gridY = invY + 60;
+        g2.setColor(Color.WHITE);
+        g2.setFont(new Font("Arial", Font.BOLD, 18));
+        g2.drawString("ENVANTER", gridX, gridY - 15);
         
         for (int i = 0; i < 40; i++) {
             int row = i / 10;
             int col = i % 10;
-            int sx = invX + padding + col * (slotSize + padding);
-            int sy = invY + padding + row * (slotSize + padding);
+            int sx = gridX + col * (slotSize + padding);
+            int sy = gridY + row * (slotSize + padding);
             
             ItemStack stack = inv.getSlots()[i];
             
-            g2.setColor(new Color(60, 60, 60, 150));
-            g2.fillRoundRect(sx, sy, slotSize, slotSize, 8, 8);
-            g2.setColor(Color.DARK_GRAY);
-            g2.drawRoundRect(sx, sy, slotSize, slotSize, 8, 8);
+            g2.setColor(new Color(50, 50, 50, 200));
+            g2.fillRoundRect(sx, sy, slotSize, slotSize, 10, 10);
+            g2.setColor(new Color(150, 150, 150, 80));
+            g2.setStroke(new BasicStroke(1.5f));
+            g2.drawRoundRect(sx, sy, slotSize, slotSize, 10, 10);
             
             if (stack != null && stack.tile != Tile.AIR) {
-                boolean isBg = stack.isBackground;
-                int iconSize = isBg ? slotSize - 22 : slotSize - 16;
-                int iconOff  = isBg ? 11 : 8;
-
-                g2.setColor(isBg ? stack.tile.color.darker() : stack.tile.color);
-                g2.fillRoundRect(sx + iconOff, sy + iconOff, iconSize, iconSize, 4, 4);
-                
-                if (isBg) {
-                    g2.setColor(new Color(255, 255, 255, 40));
-                    g2.drawRoundRect(sx + iconOff, sy + iconOff, iconSize, iconSize, 4, 4);
-                }
-
+                g2.setColor(stack.isBackground ? stack.tile.color.darker() : stack.tile.color);
+                g2.fillRoundRect(sx + 8, sy + 8, slotSize - 16, slotSize - 16, 5, 5);
                 g2.setColor(Color.WHITE);
-                g2.setFont(new Font("Arial", Font.BOLD, 11));
-                g2.drawString(String.valueOf(stack.amount), sx + 4, sy + 14);
-                
-                g2.setFont(new Font("Arial", Font.BOLD, 9));
-                String name = stack.tile.name().substring(0, Math.min(3, stack.tile.name().length()));
-                if (isBg) name += "B";
-                g2.drawString(name, sx + 4, sy + slotSize - 4);
+                g2.setFont(new Font("Arial", Font.BOLD, 14));
+                g2.drawString(String.valueOf(stack.amount), sx + 6, sy + 18);
             }
         }
         
-        // --- Equipment Slots ---
-        int eqX = invX + 460;
-        int eqY = invY + padding;
-        String[] labels = {"HAT", "MSK", "SHRT", "PANT", "SHOE", "BACK"};
+        // --- Right Section: Character Preview Box ---
+        int previewX = invX + 590;
+        int previewY = invY + 60;
+        int previewW = 125;
+        int previewH = 220;
+        
+        g2.setColor(new Color(45, 45, 45));
+        g2.fillRoundRect(previewX, previewY, previewW, previewH, 15, 15);
+        g2.setColor(new Color(80, 80, 100));
+        g2.drawRoundRect(previewX, previewY, previewW, previewH, 15, 15);
+        
+        // Draw Large Stickman in Preview
+        drawStickmanPreview(g2, previewX + previewW / 2, previewY + 120);
+        
+        // --- Equipment Slots (Around Character) ---
+        int[][] eqCoords = {
+            {previewX + previewW/2 - 24, previewY - 55}, // HAT
+            {previewX - 60, previewY + 10},              // MASK
+            {previewX - 60, previewY + 70},              // SHIRT
+            {previewX - 60, previewY + 130},             // PANTS
+            {previewX + previewW/2 - 24, previewY + previewH + 15}, // SHOE
+            {previewX + previewW + 15, previewY + 70}    // BACK
+        };
+        String[] eqLabels = {"BAŞLIK", "MASKE", "GÖVDE", "BACAK", "AYAK", "SIRT"};
         
         for (int i = 0; i < 6; i++) {
-            int sx = eqX;
-            int sy = eqY + i * 58; // Increased spacing for labels
+            int sx = eqCoords[i][0];
+            int sy = eqCoords[i][1];
             ItemStack stack = inv.getEquipment()[i];
             
-            g2.setColor(new Color(200, 200, 200, 40));
-            g2.fillRoundRect(sx, sy, slotSize, slotSize, 8, 8);
-            g2.setColor(Color.LIGHT_GRAY);
-            g2.drawRoundRect(sx, sy, slotSize, slotSize, 8, 8);
+            g2.setColor(new Color(60, 60, 70, 220));
+            g2.fillRoundRect(sx, sy, slotSize, slotSize, 12, 12);
+            g2.setColor(new Color(180, 180, 220, 120));
+            g2.drawRoundRect(sx, sy, slotSize, slotSize, 12, 12);
             
-            g2.setColor(Color.GRAY);
+            g2.setColor(new Color(200, 200, 200, 150));
             g2.setFont(new Font("Arial", Font.PLAIN, 10));
-            g2.drawString(labels[i], sx + 2, sy - 2);
-
+            g2.drawString(eqLabels[i], sx, sy - 4);
+            
             if (stack != null && stack.tile != Tile.AIR) {
                 g2.setColor(stack.tile.color);
-                g2.fillRoundRect(sx + 8, sy + 8, slotSize - 16, slotSize - 16, 4, 4);
+                g2.fillRoundRect(sx + 10, sy + 10, slotSize - 20, slotSize - 20, 6, 6);
             }
         }
     }
@@ -561,26 +625,37 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         if (!inventoryOpen) return -1;
         
         int w = 800, h = 600;
-        int invW = 540, invH = 380;
+        int invW = 740, invH = 480;
         int invX = (w - invW) / 2;
         int invY = (h - invH) / 2;
-        int slotSize = 44, padding = 10;
+        int slotSize = 48, padding = 8;
         
-        // Check main inventory slots
+        // Main inventory slots
+        int gridX = invX + 25;
+        int gridY = invY + 60;
         for (int i = 0; i < 40; i++) {
-            int row = i / 10;
             int col = i % 10;
-            int sx = invX + padding + col * (slotSize + padding);
-            int sy = invY + padding + row * (slotSize + padding);
+            int row = i / 10;
+            int sx = gridX + col * (slotSize + padding);
+            int sy = gridY + row * (slotSize + padding);
             if (mx >= sx && mx <= sx + slotSize && my >= sy && my <= sy + slotSize) return i;
         }
         
-        // Check equipment slots
-        int eqX = invX + 460;
-        int eqY = invY + padding;
+        // Character preview equipment slots
+        int previewX = invX + 590;
+        int previewY = invY + 60;
+        int previewW = 125;
+        int[][] eqCoords = {
+            {previewX + previewW/2 - 24, previewY - 55}, // HAT
+            {previewX - 60, previewY + 10},              // MASK
+            {previewX - 60, previewY + 70},              // SHIRT
+            {previewX - 60, previewY + 130},             // PANTS
+            {previewX + previewW/2 - 24, previewY + 220 + 15}, // SHOE
+            {previewX + previewW + 15, previewY + 70}    // BACK
+        };
         for (int i = 0; i < 6; i++) {
-            int sx = eqX;
-            int sy = eqY + i * 58;
+            int sx = eqCoords[i][0];
+            int sy = eqCoords[i][1];
             if (mx >= sx && mx <= sx + slotSize && my >= sy && my <= sy + slotSize) return 100 + i;
         }
         
@@ -605,15 +680,20 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             }
         }
         
-        if (SwingUtilities.isLeftMouseButton(e))  leftHeld  = true;
-        if (SwingUtilities.isRightMouseButton(e)) handleRightClickPlacement(e);
+        if (e.getButton() == MouseEvent.BUTTON1) {
+            leftHeld = true;
+        } else if (e.getButton() == MouseEvent.BUTTON3) {
+            rightHeld = true;
+            // Immediate placement on first press
+            int tx = camera.toTileX(mouseScreenX);
+            int ty = camera.toTileY(mouseScreenY);
+            handleRightClickPlacement(tx, ty);
+            lastPlacementTime = System.currentTimeMillis();
+        }
         requestFocusInWindow();
     }
 
-    private void handleRightClickPlacement(MouseEvent e) {
-        int tx = camera.toTileX(e.getX());
-        int ty = camera.toTileY(e.getY());
-        
+    private void handleRightClickPlacement(int tx, int ty) { // Modified to take tx, ty
         double px = player.x + Player.W / 2.0;
         double py = player.y + Player.H / 2.0;
         double txC = tx * World.TILE_SIZE + World.TILE_SIZE / 2.0;
@@ -639,7 +719,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                         if (world.getFg(tx, ty) == Tile.AIR) {
                             world.setFg(tx, ty, selStack.tile);
                             player.getInventory().removeItem(selStack.tile, false);
-                        } else if (world.getBg(tx, ty) == Tile.AIR) {
+                        } else if (world.getBg(tx, ty) == Tile.AIR) { // Allow placing FG on BG
                             world.setFg(tx, ty, selStack.tile);
                             player.getInventory().removeItem(selStack.tile, false);
                         }
@@ -649,6 +729,9 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         }
     }
     @Override public void mouseReleased(MouseEvent e) {
+        if (e.getButton() == MouseEvent.BUTTON1) leftHeld = false;
+        if (e.getButton() == MouseEvent.BUTTON3) rightHeld = false;
+
         if (draggedStack != null) {
             int targetIndex = getSlotAt(e.getX(), e.getY());
             Inventory inv = player.getInventory();
