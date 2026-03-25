@@ -19,7 +19,7 @@ public class Player {
     public Inventory getInventory() { return inventory; }
 
     public static final int W = 24;
-    public static final int H = 32;
+    public static final int H = 60;
 
     private static final double GRAVITY    = 0.5;
     private static final double MAX_VY     = 14;

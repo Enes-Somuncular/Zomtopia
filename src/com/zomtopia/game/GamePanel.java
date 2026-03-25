@@ -248,13 +248,19 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         // --- Player sprite ---
         int spx = camera.toScreenX((int) player.x);
         int spy = camera.toScreenY((int) player.y);
+        
+        // Body
         g2.setColor(new Color(60, 120, 200));
-        g2.fillRoundRect(spx + 4, spy, Player.W - 8, Player.H, 6, 6);
+        g2.fillRoundRect(spx + 4, spy + 18, Player.W - 8, Player.H - 18, 6, 6);
+        
+        // Head
         g2.setColor(new Color(230, 185, 140));
-        g2.fillOval(spx + 4, spy - 16, 16, 16);
+        g2.fillOval(spx + 4, spy, 16, 16);
+        
+        // Eyes
         g2.setColor(new Color(50, 50, 80));
-        g2.fillOval(spx + 7, spy - 12, 3, 3);
-        g2.fillOval(spx + 13, spy - 12, 3, 3);
+        g2.fillOval(spx + 7, spy + 4, 3, 3);
+        g2.fillOval(spx + 13, spy + 4, 3, 3);
 
         drawDroppedItems(g2);
         drawHUD(g2);
