@@ -38,7 +38,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     private int mouseScreenX, mouseScreenY;
     private boolean leftHeld, rightHeld;
     private long lastPlacementTime = 0;
-    private static final long PLACEMENT_COOLDOWN = 180;
+    private static final long PLACEMENT_COOLDOWN = 150;
     private static final int T = World.TILE_SIZE;
 
     // Snapshot of mouse target for sync
@@ -681,9 +681,9 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             }
         }
         
-        if (e.getButton() == MouseEvent.BUTTON1) {
+        if (SwingUtilities.isLeftMouseButton(e)) {
             leftHeld = true;
-        } else if (e.getButton() == MouseEvent.BUTTON3) {
+        } else if (SwingUtilities.isRightMouseButton(e)) {
             rightHeld = true;
             // Immediate placement on first press if in range
             if (isInRangePlace && !inventoryOpen) {
@@ -717,10 +717,8 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                             player.getInventory().removeItem(selStack.tile, true);
                         }
                     } else {
+                        // Foreground blocks ONLY place on Foreground AIR
                         if (world.getFg(tx, ty) == Tile.AIR) {
-                            world.setFg(tx, ty, selStack.tile);
-                            player.getInventory().removeItem(selStack.tile, false);
-                        } else if (world.getBg(tx, ty) == Tile.AIR) { // Allow placing FG on BG
                             world.setFg(tx, ty, selStack.tile);
                             player.getInventory().removeItem(selStack.tile, false);
                         }
@@ -730,8 +728,8 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         }
     }
     @Override public void mouseReleased(MouseEvent e) {
-        if (e.getButton() == MouseEvent.BUTTON1) leftHeld = false;
-        if (e.getButton() == MouseEvent.BUTTON3) rightHeld = false;
+        if (SwingUtilities.isLeftMouseButton(e)) leftHeld = false;
+        if (SwingUtilities.isRightMouseButton(e)) rightHeld = false;
 
         if (draggedStack != null) {
             int targetIndex = getSlotAt(e.getX(), e.getY());
