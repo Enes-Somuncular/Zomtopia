@@ -1,0 +1,22 @@
+#!/bin/bash
+set -euo pipefail
+
+WORKDIR="/Users/enessomuncular/Antigravity/Zomtopia"
+LOG_FILE="$HOME/ZomtopiaDemo.log"
+
+if [ ! -d "$WORKDIR" ]; then
+  echo "Zomtopia workspace not found: $WORKDIR" >&2
+  exit 1
+fi
+
+cd "$WORKDIR"
+
+if [ ! -f "$WORKDIR/Zomtopia.command" ]; then
+  echo "Missing launcher script: $WORKDIR/Zomtopia.command" >&2
+  exit 1
+fi
+
+echo "---- ZomtopiaDemo launch: $(date) ----" >> "$LOG_FILE"
+
+# Finder'dan çift tıklanınca konsol çıkmayabilir; loga yaz.
+/bin/bash "$WORKDIR/Zomtopia.command" >> "$LOG_FILE" 2>&1
