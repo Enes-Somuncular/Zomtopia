@@ -30,6 +30,8 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     // Items and Inventory UI
     private final List<ItemEntity> droppedItems = new CopyOnWriteArrayList<>();
     private boolean inventoryOpen = false;
+    private com.zomtopia.game.inventory.ItemStack draggedStack = null;
+    private int draggedSourceIdx = -1;
 
     // Mouse state
     private int mouseScreenX, mouseScreenY;
@@ -90,13 +92,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             double dy = py - (item.y + ItemEntity.SIZE / 2.0);
             double distSq = dx * dx + dy * dy;
 
-            if (distSq < Math.pow(World.TILE_SIZE * 5, 2)) {
-                // Suck towards player
-                item.vx += dx * 0.03;
-                item.vy += dy * 0.03;
-            }
-
-            if (distSq < Math.pow(World.TILE_SIZE * 1.5, 2)) {
+            if (distSq < Math.pow(World.TILE_SIZE * 0.9, 2)) {
                 if (player.getInventory().addItem(item.tile, 1)) {
                     droppedItems.remove(item);
                 }
@@ -291,7 +287,21 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
 
         drawDroppedItems(g2);
         drawHUD(g2);
-        if (inventoryOpen) drawExpandedInventory(g2);
+        if (inventoryOpen) {
+            drawExpandedInventory(g2);
+            drawDraggedItem(g2);
+        }
+    }
+
+    private void drawDraggedItem(Graphics2D g2) {
+        if (draggedStack != null && draggedStack.tile != Tile.AIR) {
+            int slotSize = 44;
+            g2.setColor(draggedStack.tile.color);
+            g2.fillRoundRect(mouseScreenX - slotSize/2 + 8, mouseScreenY - slotSize/2 + 8, slotSize - 16, slotSize - 16, 4, 4);
+            g2.setColor(Color.WHITE);
+            g2.setFont(new Font("Arial", Font.BOLD, 12));
+            g2.drawString(String.valueOf(draggedStack.amount), mouseScreenX - slotSize/2 + 4, mouseScreenY - slotSize/2 + 14);
+        }
     }
 
     private void drawDroppedItems(Graphics2D g2) {
@@ -425,12 +435,75 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     }
 
     // ──────────── INPUT ────────────
+    private int getSlotAt(int mx, int my) {
+        int slotSize = 44;
+        int padding = 6;
+        
+        // Check hotbar
+        int hotbarSize = 10;
+        int totalW_h = hotbarSize * (slotSize + padding) - padding;
+        int sx0_h = (getWidth() - totalW_h) / 2;
+        int y_h = getHeight() - slotSize - 16;
+        
+        if (my >= y_h && my <= y_h + slotSize) {
+            for (int i = 0; i < hotbarSize; i++) {
+                int sx = sx0_h + i * (slotSize + padding);
+                if (mx >= sx && mx <= sx + slotSize) return i;
+            }
+        }
+        
+        // Check expanded inventory
+        if (inventoryOpen) {
+            int cols = 10;
+            int rows = 3;
+            int totalW_e = cols * (slotSize + padding) - padding;
+            int totalH_e = rows * (slotSize + padding) - padding;
+            int x0_e = (getWidth() - totalW_e) / 2;
+            int y0_e = (getHeight() - totalH_e) / 2 - 50;
+            
+            if (mx >= x0_e && mx <= x0_e + totalW_e && my >= y0_e && my <= y0_e + totalH_e) {
+                int col = (mx - x0_e) / (slotSize + padding);
+                int row = (my - y0_e) / (slotSize + padding);
+                if (col >= 0 && col < cols && row >= 0 && row < rows) {
+                    return 10 + (row * cols + col);
+                }
+            }
+        }
+        
+        return -1;
+    }
+
     @Override public void mousePressed(MouseEvent e) {
+        if (inventoryOpen) {
+            int slot = getSlotAt(e.getX(), e.getY());
+            if (slot != -1) {
+                draggedStack = player.getInventory().getStack(slot);
+                draggedSourceIdx = slot;
+                player.getInventory().setStack(slot, null);
+                return;
+            }
+        }
+        
         if (SwingUtilities.isLeftMouseButton(e))  leftHeld  = true;
         if (SwingUtilities.isRightMouseButton(e)) rightHeld = true;
         requestFocusInWindow();
     }
     @Override public void mouseReleased(MouseEvent e) {
+        if (draggedStack != null) {
+            int targetSlot = getSlotAt(e.getX(), e.getY());
+            if (targetSlot != -1) {
+                // Swap
+                com.zomtopia.game.inventory.ItemStack targetStack = player.getInventory().getStack(targetSlot);
+                player.getInventory().setStack(targetSlot, draggedStack);
+                player.getInventory().setStack(draggedSourceIdx, targetStack);
+            } else {
+                // Return to source
+                player.getInventory().setStack(draggedSourceIdx, draggedStack);
+            }
+            draggedStack = null;
+            draggedSourceIdx = -1;
+        }
+
         if (SwingUtilities.isLeftMouseButton(e))  { leftHeld  = false; resetBreak(); }
         if (SwingUtilities.isRightMouseButton(e)) rightHeld = false;
     }
@@ -442,7 +515,14 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         player.handleKeyPress(e.getKeyCode());
         int k = e.getKeyCode() - KeyEvent.VK_1;
         if (k >= 0 && k < com.zomtopia.game.inventory.Inventory.SIZE) selectedSlot = k;
-        if (e.getKeyCode() == KeyEvent.VK_E) inventoryOpen = !inventoryOpen;
+        if (e.getKeyCode() == KeyEvent.VK_E) {
+            if (inventoryOpen && draggedStack != null) {
+                player.getInventory().setStack(draggedSourceIdx, draggedStack);
+                draggedStack = null;
+                draggedSourceIdx = -1;
+            }
+            inventoryOpen = !inventoryOpen;
+        }
         if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
             gameTimer.stop();
             JFrame f = (JFrame) SwingUtilities.getWindowAncestor(this);

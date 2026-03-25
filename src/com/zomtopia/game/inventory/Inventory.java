@@ -63,4 +63,10 @@ public class Inventory {
         if (index < 0 || index >= SIZE) return null;
         return slots[index];
     }
+
+    public void setStack(int index, ItemStack stack) {
+        if (index >= 0 && index < SIZE) {
+            slots[index] = stack;
+        }
+    }
 }
