@@ -283,10 +283,14 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         for (ItemEntity item : droppedItems) {
             int sx = camera.toScreenX((int) item.x);
             int sy = camera.toScreenY((int) item.y);
+            boolean bg = item.isBackground;
+            int renderSize = bg ? ItemEntity.SIZE - 4 : ItemEntity.SIZE;
+            int offset = bg ? 2 : 0;
+
             g2.setColor(item.tile.color.darker());
-            g2.fillRoundRect(sx, sy, ItemEntity.SIZE, ItemEntity.SIZE, 4, 4);
-            g2.setColor(item.tile.color);
-            g2.fillRoundRect(sx + 2, sy + 2, ItemEntity.SIZE - 4, ItemEntity.SIZE - 4, 2, 2);
+            g2.fillRoundRect(sx + offset, sy + offset, renderSize, renderSize, 4, 4);
+            g2.setColor(bg ? item.tile.color.darker() : item.tile.color);
+            g2.fillRoundRect(sx + offset + 2, sy + offset + 2, renderSize - 4, renderSize - 4, 2, 2);
         }
     }
 
@@ -322,8 +326,18 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                 g2.drawRoundRect(sx, sy, slotSize, slotSize, 8, 8);
                 
                 if (stack != null && stack.tile != Tile.AIR) {
-                    g2.setColor(stack.tile.color);
-                    g2.fillRoundRect(sx + 8, sy + 8, slotSize - 16, slotSize - 16, 4, 4);
+                    boolean isBg = stack.isBackground;
+                    int iconSize = isBg ? slotSize - 22 : slotSize - 16;
+                    int iconOff  = isBg ? 11 : 8;
+
+                    g2.setColor(isBg ? stack.tile.color.darker() : stack.tile.color);
+                    g2.fillRoundRect(sx + iconOff, sy + iconOff, iconSize, iconSize, 4, 4);
+                    
+                    if (isBg) {
+                        g2.setColor(new Color(255, 255, 255, 40));
+                        g2.drawRoundRect(sx + iconOff, sy + iconOff, iconSize, iconSize, 4, 4);
+                    }
+
                     g2.setColor(Color.WHITE);
                     g2.setFont(new Font("Arial", Font.BOLD, 11));
                     g2.drawString(String.valueOf(stack.amount), sx + 4, sy + 14);
@@ -385,8 +399,17 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             g2.setStroke(new BasicStroke(1f));
 
             if (stack != null && stack.tile != Tile.AIR) {
-                g2.setColor(stack.tile.color);
-                g2.fillRoundRect(sx + 8, y + 8, slotSize - 16, slotSize - 16, 4, 4);
+                boolean isBg = stack.isBackground;
+                int iconSize = isBg ? slotSize - 22 : slotSize - 16;
+                int iconOff  = isBg ? 11 : 8;
+
+                g2.setColor(isBg ? stack.tile.color.darker() : stack.tile.color);
+                g2.fillRoundRect(sx + iconOff, y + iconOff, iconSize, iconSize, 4, 4);
+                
+                if (isBg) {
+                    g2.setColor(new Color(255, 255, 255, 40));
+                    g2.drawRoundRect(sx + iconOff, y + iconOff, iconSize, iconSize, 4, 4);
+                }
                 
                 // Miktar
                 g2.setColor(Color.WHITE);
@@ -394,7 +417,9 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                 g2.drawString(String.valueOf(stack.amount), sx + 4, y + 14);
                 
                 g2.setFont(new Font("Arial", Font.BOLD, 9));
-                g2.drawString(stack.tile.name().substring(0, Math.min(3, stack.tile.name().length())), sx + 4, y + slotSize - 4);
+                String name = stack.tile.name().substring(0, Math.min(3, stack.tile.name().length()));
+                if (isBg) name += "B";
+                g2.drawString(name, sx + 4, y + slotSize - 4);
             }
         }
 
