@@ -17,7 +17,7 @@ public class SaveManager {
             // 1. Player Data
             out.writeDouble(player.x);
             out.writeDouble(player.y);
-            out.writeInt(player.health);
+            out.writeInt(player.healthHalf);
             out.writeFloat(player.stamina);
 
             // 2. Inventory Data
@@ -70,7 +70,9 @@ public class SaveManager {
             // 1. Player Data
             player.x = in.readDouble();
             player.y = in.readDouble();
-            player.health = in.readInt();
+            int loadedHealth = in.readInt();
+            // Backward compatibility: older saves stored full hearts (0..10).
+            player.healthHalf = loadedHealth <= 10 ? loadedHealth * 2 : loadedHealth;
             player.stamina = in.readFloat();
 
             // 2. Inventory Data

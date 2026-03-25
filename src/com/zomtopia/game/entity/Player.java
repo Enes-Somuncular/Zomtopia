@@ -1,7 +1,6 @@
 package com.zomtopia.game.entity;
 
 import com.zomtopia.game.world.World;
-import com.zomtopia.game.world.Tile;
 import com.zomtopia.game.inventory.Inventory;
 import java.awt.event.KeyEvent;
 
@@ -28,12 +27,23 @@ public class Player {
     private static final double JUMP_VY    = -11.0;
     private static final double FRICTION   = 0.75;
 
-    public int health = 10;
-    public int maxHealth = 10;
+    /**
+     * Health is tracked in half-hearts to support half-heart damage.
+     * UI displays 10 full hearts (20 half-hearts) by default.
+     */
+    public int healthHalf = 20;
+    public int maxHealthHalf = 20;
     public float stamina = 100f;
     public float maxStamina = 100f;
 
     public boolean onGround = false;
+
+    // Small UI flash when damage happens.
+    public float damageFlash = 0f; // 0..1
+
+    // Fall tracking for landing damage.
+    private boolean trackingFall = false;
+    private double fallStartY = 0; // top-left Y when leaving the ground
 
     // Input flags (set by GamePanel)
     public boolean left, right, jump, sprinting, crouchInput;
@@ -46,6 +56,9 @@ public class Player {
     }
 
     public void update(World world) {
+        boolean wasOnGround = onGround;
+        double yBefore = y;
+
         // Horizontal
         double currentSpeed = MOVE_SPEED;
         
@@ -84,6 +97,12 @@ public class Player {
         if (jump && onGround) {
             vy = JUMP_VY;
             onGround = false;
+        }
+
+        // Start fall tracking when we leave ground.
+        if (wasOnGround && !onGround && !trackingFall) {
+            trackingFall = true;
+            fallStartY = yBefore;
         }
 
         // --- Crouching Logic ---
@@ -127,6 +146,32 @@ public class Player {
             onGround = false;
         }
 
+        // Apply fall damage on landing.
+        if (trackingFall && !wasOnGround && onGround) {
+            // fallStartY - y is the approximate vertical distance traveled.
+            double fallDist = fallStartY - y;
+            if (fallDist > 0) {
+                double startRange = 2.0 * World.TILE_SIZE;
+                double extra = fallDist - startRange;
+
+                if (extra > 0) {
+                    // Deal 1 half-heart per full extra tile fallen.
+                    int damageHalf = (int) Math.floor(extra / World.TILE_SIZE);
+                    if (damageHalf > 0) {
+                        applyDamageHalf(damageHalf);
+                    }
+                }
+            }
+            trackingFall = false;
+        }
+
+        // Start tracking when we leave the ground without jumping too.
+        // (e.g. walking off an edge: wasOnGround==true, onGround becomes false after collision checks)
+        if (!trackingFall && wasOnGround && !onGround) {
+            trackingFall = true;
+            fallStartY = yBefore;
+        }
+
         // Clamp to world
         double maxX = World.WIDTH  * World.TILE_SIZE - W;
         double maxY = World.HEIGHT * World.TILE_SIZE - h;
@@ -134,6 +179,18 @@ public class Player {
         if (x > maxX) { x = maxX; vx = 0; }
         if (y < 0) { y = 0; vy = 0; }
         if (y > maxY) { y = maxY; vy = 0; onGround = true; }
+
+        if (damageFlash > 0f) {
+            damageFlash = Math.max(0f, damageFlash - 0.06f);
+        }
+    }
+
+    private void applyDamageHalf(int damageHalf) {
+        int before = healthHalf;
+        healthHalf = Math.max(0, healthHalf - damageHalf);
+        if (healthHalf < before) {
+            damageFlash = 1f;
+        }
     }
 
     public void handleKeyPress(int key) {

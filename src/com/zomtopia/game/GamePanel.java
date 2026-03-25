@@ -520,20 +520,45 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         // --- Status Bars (Health & Stamina) ---
         int barWidth = totalW;
         int barX = sx0;
-        // Health: 10 hearts
+        // Health: 10 hearts (tracked as 20 half-hearts)
         int heartSize = 16;
         int heartPadding = 4;
-        for (int i = 0; i < player.maxHealth; i++) {
+        int totalHearts = Math.max(1, player.maxHealthHalf / 2);
+        int fullHearts = player.healthHalf / 2;
+        int hasHalf = player.healthHalf % 2;
+
+        // Damage flash affects filled hearts only.
+        float flash = Math.max(0f, Math.min(1f, player.damageFlash));
+        int filledAlpha = (int) Math.min(255, 200 + flash * 55);
+
+        int heartY = y - 38;
+        for (int i = 0; i < totalHearts; i++) {
             int hx = barX + i * (heartSize + heartPadding);
-            if (i < player.health) {
-                g2.setColor(new Color(220, 40, 40)); // Filled heart red
+
+            boolean isFull = i < fullHearts;
+            boolean isHalf = (i == fullHearts && hasHalf == 1);
+
+            // Base heart background (empty look for half/empty, filled look for full).
+            if (isFull) {
+                g2.setColor(new Color(220, 40, 40, filledAlpha));
             } else {
-                g2.setColor(new Color(60, 20, 20, 150)); // Empty heart dark
+                g2.setColor(new Color(60, 20, 20, 150));
             }
-            // Simplification: just a small rounded rect for now for pixel-look
-            g2.fillRoundRect(hx, y - 38, heartSize, heartSize, 4, 4);
+
+            g2.fillRoundRect(hx, heartY, heartSize, heartSize, 4, 4);
+
+            // Half-heart overlay: clip to left half.
+            if (isHalf) {
+                Shape oldClip = g2.getClip();
+                g2.setClip(new Rectangle(hx, heartY, heartSize / 2, heartSize));
+                g2.setColor(new Color(220, 40, 40, filledAlpha));
+                g2.fillRoundRect(hx, heartY, heartSize, heartSize, 4, 4);
+                g2.setClip(oldClip);
+            }
+
+            // Outline
             g2.setColor(new Color(255, 255, 255, 80));
-            g2.drawRoundRect(hx, y - 38, heartSize, heartSize, 4, 4);
+            g2.drawRoundRect(hx, heartY, heartSize, heartSize, 4, 4);
         }
 
         // Stamina bar
