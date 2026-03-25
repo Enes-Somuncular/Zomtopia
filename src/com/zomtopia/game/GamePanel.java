@@ -618,13 +618,13 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         g2.setStroke(new BasicStroke(3f));
         g2.drawRoundRect(invX, invY, invW, invH, 20, 20);
         
-        int slotSize = 44;
-        int padding = 8;
+        int slotSize = 40;
+        int padding = 6;
         Inventory inv = player.getInventory();
         
         // --- Left Section: Main Slots (4x10) ---
-        int gridX = invX + 20;
-        int gridY = invY + 70;
+        int gridX = invX + 30;
+        int gridY = invY + 80;
         g2.setColor(Color.WHITE);
         g2.setFont(new Font("Arial", Font.BOLD, 18));
         g2.drawString("ENVANTER", gridX, gridY - 20);
@@ -637,24 +637,24 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             
             ItemStack stack = inv.getSlots()[i];
             
-            g2.setColor(new Color(45, 45, 50, 220));
-            g2.fillRoundRect(sx, sy, slotSize, slotSize, 10, 10);
-            g2.setColor(new Color(255, 255, 255, 30));
-            g2.setStroke(new BasicStroke(1.5f));
-            g2.drawRoundRect(sx, sy, slotSize, slotSize, 10, 10);
+            g2.setColor(new Color(40, 40, 45, 230));
+            g2.fillRoundRect(sx, sy, slotSize, slotSize, 8, 8);
+            g2.setColor(new Color(255, 255, 255, 20));
+            g2.setStroke(new BasicStroke(1.2f));
+            g2.drawRoundRect(sx, sy, slotSize, slotSize, 8, 8);
             
             if (stack != null && stack.tile != Tile.AIR) {
                 g2.setColor(stack.isBackground ? stack.tile.color.darker() : stack.tile.color);
-                g2.fillRoundRect(sx + 6, sy + 6, slotSize - 12, slotSize - 12, 5, 5);
+                g2.fillRoundRect(sx + 5, sy + 5, slotSize - 10, slotSize - 10, 5, 5);
                 g2.setColor(Color.WHITE);
-                g2.setFont(new Font("Arial", Font.BOLD, 12));
-                g2.drawString(String.valueOf(stack.amount), sx + 4, sy + 14);
+                g2.setFont(new Font("Arial", Font.BOLD, 11));
+                g2.drawString(String.valueOf(stack.amount), sx + 4, sy + 13);
             }
         }
         
         // --- Right Section: Character Preview Box ---
-        int previewX = invX + 575;
-        int previewY = invY + 70;
+        int previewX = invX + 530;
+        int previewY = invY + 80;
         int previewW = 140;
         int previewH = 260;
         
@@ -666,14 +666,15 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         // Draw Large Stickman in Preview
         drawStickmanPreview(g2, previewX + previewW / 2, previewY + 120);
         
-        // --- Equipment Slots (Around Character) ---
+        // --- Equipment Slots ---
+        int slotW = 44;
         int[][] eqCoords = {
-            {previewX + previewW/2 - 20, previewY - 55}, // HAT
-            {previewX - 48, previewY + 10},              // MASK
-            {previewX - 48, previewY + 70},              // SHIRT
-            {previewX - 48, previewY + 130},             // PANTS
-            {previewX + previewW/2 - 20, previewY + previewH + 10}, // SHOE
-            {previewX + previewW + 8, previewY + 70}     // BACK
+            {previewX + previewW/2 - slotW/2, previewY - 55}, // HAT
+            {previewX - 55, previewY + 10},                   // MASK
+            {previewX - 55, previewY + 70},                   // SHIRT
+            {previewX - 55, previewY + 130},                  // PANTS
+            {previewX + previewW/2 - slotW/2, previewY + previewH + 10}, // SHOE
+            {previewX + previewW + 10, previewY + 70}         // BACK
         };
         String[] eqLabels = {"BAŞLIK", "MASKE", "GÖVDE", "BACAK", "AYAK", "SIRT"};
         
@@ -706,11 +707,11 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         int invW = 740, invH = 480;
         int invX = (w - invW) / 2;
         int invY = (h - invH) / 2;
-        int slotSize = 44, padding = 8;
+        int slotSize = 40, padding = 6;
         
         // Main inventory slots
-        int gridX = invX + 20;
-        int gridY = invY + 70;
+        int gridX = invX + 30;
+        int gridY = invY + 80;
         for (int i = 0; i < 40; i++) {
             int col = i % 10;
             int row = i / 10;
@@ -720,23 +721,23 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         }
         
         // Character preview equipment slots
-        int previewX = invX + 575;
-        int previewY = invY + 70;
+        int previewX = invX + 530;
+        int previewY = invY + 80;
         int previewW = 140;
         int previewH = 260;
+        int slotW = 44;
         int[][] eqCoords = {
-            {previewX + previewW/2 - 20, previewY - 55}, // HAT
-            {previewX - 48, previewY + 10},              // MASK
-            {previewX - 48, previewY + 70},              // SHIRT
-            {previewX - 48, previewY + 130},             // PANTS
-            {previewX + previewW/2 - 20, previewY + previewH + 10}, // SHOE
-            {previewX + previewW + 8, previewY + 70}     // BACK
+            {previewX + previewW/2 - slotW/2, previewY - 55}, // HAT
+            {previewX - 55, previewY + 10},                   // MASK
+            {previewX - 55, previewY + 70},                   // SHIRT
+            {previewX - 55, previewY + 130},                  // PANTS
+            {previewX + previewW/2 - slotW/2, previewY + previewH + 10}, // SHOE
+            {previewX + previewW + 10, previewY + 70}         // BACK
         };
         for (int i = 0; i < 6; i++) {
             int sx = eqCoords[i][0];
             int sy = eqCoords[i][1];
-            // Using 40x40 hit area for equipment slots
-            if (mx >= sx && mx <= sx + 40 && my >= sy && my <= sy + 40) return 100 + i;
+            if (mx >= sx && mx <= sx + slotW && my >= sy && my <= sy + slotW) return 100 + i;
         }
         
         return -1;
