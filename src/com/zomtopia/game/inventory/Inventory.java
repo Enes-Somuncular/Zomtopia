@@ -47,9 +47,9 @@ public class Inventory {
         return false;
     }
 
-    public void removeItem(Tile tile) {
+    public void removeItem(Tile tile, boolean isBackground) {
         for (int i = 0; i < slots.length; i++) {
-            if (slots[i] != null && slots[i].tile == tile) {
+            if (slots[i] != null && slots[i].tile == tile && slots[i].isBackground == isBackground) {
                 slots[i].amount--;
                 if (slots[i].amount <= 0) {
                     slots[i] = null;

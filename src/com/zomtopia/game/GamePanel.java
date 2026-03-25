@@ -92,7 +92,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             double dy = py - (item.y + ItemEntity.SIZE / 2.0);
             double distSq = dx * dx + dy * dy;
 
-            if (distSq < Math.pow(World.TILE_SIZE * 1.5, 2)) {
+            if (distSq < Math.pow(World.TILE_SIZE * 2.0, 2)) {
                 if (player.getInventory().addItem(item.tile, 1, item.isBackground)) {
                     droppedItems.remove(item);
                 }
@@ -175,17 +175,15 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                             // Only place as background if AIR
                             if (world.getBg(tx, ty) == Tile.AIR) {
                                 world.setBg(tx, ty, selStack.tile);
-                                player.getInventory().removeItem(selStack.tile);
+                                player.getInventory().removeItem(selStack.tile, true);
                             }
                         } else {
                             if (world.getFg(tx, ty) == Tile.AIR) {
                                 world.setFg(tx, ty, selStack.tile);
-                                player.getInventory().removeItem(selStack.tile);
+                                player.getInventory().removeItem(selStack.tile, false);
                             } else if (world.getBg(tx, ty) == Tile.AIR) {
-                                // Fallback to BG if FG is occupied but somehow we are trying to place FG? 
-                                // Actually, let's keep it simple: FG items only place in FG.
                                 world.setFg(tx, ty, selStack.tile);
-                                player.getInventory().removeItem(selStack.tile);
+                                player.getInventory().removeItem(selStack.tile, false);
                             }
                         }
                     }
@@ -411,10 +409,10 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             boolean sel = (i == selectedSlot);
             com.zomtopia.game.inventory.ItemStack stack = player.getInventory().getStack(i);
 
-            Color slotBg = sel ? new Color(255, 255, 255, 200) : (inventoryOpen ? new Color(60, 60, 60, 230) : new Color(0, 0, 0, 140));
+            Color slotBg = sel ? new Color(255, 255, 255, 220) : (inventoryOpen ? new Color(100, 100, 100, 240) : new Color(0, 0, 0, 140));
             g2.setColor(slotBg);
             g2.fillRoundRect(sx, y, slotSize, slotSize, 8, 8);
-            g2.setColor(sel ? Color.YELLOW : (inventoryOpen ? Color.LIGHT_GRAY : Color.GRAY));
+            g2.setColor(sel ? Color.YELLOW : (inventoryOpen ? Color.WHITE : Color.GRAY));
             g2.setStroke(new BasicStroke(sel ? 2.5f : 1.5f));
             g2.drawRoundRect(sx, y, slotSize, slotSize, 8, 8);
             g2.setStroke(new BasicStroke(1f));
