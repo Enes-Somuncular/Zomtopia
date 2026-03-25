@@ -35,6 +35,8 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     private boolean deathMenuOpen = false;
     private int draggedSourceIdx = -1;
     private ItemStack draggedStack = null;
+    private boolean draggingFromHotbar = false;
+    private int draggedHotbarIdx = -1;
 
     // Input state
     private int mouseScreenX, mouseScreenY;
@@ -671,27 +673,29 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             g2.setStroke(new BasicStroke(1f));
 
             if (stack != null && stack.tile != Tile.AIR) {
-                boolean isBg = stack.isBackground;
-                int iconSize = isBg ? slotSize - 22 : slotSize - 16;
-                int iconOff  = isBg ? 11 : 8;
+                int iconSize = Math.max(14, slotSize - 24);
+                int iconX = sx + (slotSize - iconSize) / 2;
+                int iconY = y + 6;
 
-                g2.setColor(isBg ? stack.tile.color.darker() : stack.tile.color);
-                g2.fillRoundRect(sx + iconOff, y + iconOff, iconSize, iconSize, 4, 4);
-                
-                if (isBg) {
-                    g2.setColor(new Color(255, 255, 255, 40));
-                    g2.drawRoundRect(sx + iconOff, y + iconOff, iconSize, iconSize, 4, 4);
-                }
-                
-                // Miktar
+                // Demo icon (same as inventory) + readable name under it.
+                drawInventoryDemoIcon(g2, stack, iconX, iconY, iconSize);
+
+                // Amount
                 g2.setColor(Color.WHITE);
-                g2.setFont(new Font("Arial", Font.BOLD, 11));
-                g2.drawString(String.valueOf(stack.amount), sx + 4, y + 14);
-                
+                g2.setFont(new Font("Arial", Font.BOLD, 10));
+                g2.drawString(String.valueOf(stack.amount), sx + 4, y + 16);
+
+                // Name (fit to slot)
+                g2.setColor(Color.WHITE);
                 g2.setFont(new Font("Arial", Font.BOLD, 9));
-                String name = stack.tile.name().substring(0, Math.min(3, stack.tile.name().length()));
-                if (isBg) name += "B";
-                g2.drawString(name, sx + 4, y + slotSize - 4);
+                String name = getTileDisplayName(stack.tile);
+                if (stack.isBackground) name += " (ARKA)";
+
+                FontMetrics fm = g2.getFontMetrics();
+                while (name.length() > 1 && fm.stringWidth(name) > slotSize - 8) {
+                    name = name.substring(0, name.length() - 1);
+                }
+                g2.drawString(name, sx + 4, y + slotSize - 6);
             }
         }
 
@@ -1055,6 +1059,21 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         return -1;
     }
 
+    private int getHotbarSlotAt(int mx, int my) {
+        int slotSize = 44;
+        int padding = 6;
+        int hotbarSize = 10;
+        int totalW = hotbarSize * (slotSize + padding) - padding;
+        int sx0 = (getWidth() - totalW) / 2;
+        int y = getHeight() - slotSize - 16;
+
+        for (int i = 0; i < hotbarSize; i++) {
+            int sx = sx0 + i * (slotSize + padding);
+            if (mx >= sx && mx <= sx + slotSize && my >= y && my <= y + slotSize) return i;
+        }
+        return -1;
+    }
+
     @Override public void mousePressed(MouseEvent e) {
         if (deathMenuOpen) {
             int mx = e.getX(), my = e.getY();
@@ -1125,6 +1144,26 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                 }
                 draggedSourceIdx = slot;
                 return;
+            }
+        }
+
+        // Drag/drop from hotbar (outside expanded inventory):
+        // - Click + drag an item from hotbar
+        // - Drop outside the hotbar => spawn item in the world
+        // - Drop onto another hotbar slot => swap
+        if (SwingUtilities.isLeftMouseButton(e) && !inventoryOpen && !deathMenuOpen) {
+            int hb = getHotbarSlotAt(e.getX(), e.getY());
+            if (hb != -1) {
+                Inventory inv = player.getInventory();
+                ItemStack stack = inv.getSlots()[hb];
+                if (stack != null && stack.tile != Tile.AIR) {
+                    draggedStack = stack;
+                    inv.getSlots()[hb] = null;
+                    draggedHotbarIdx = hb;
+                    draggingFromHotbar = true;
+                    // Do not start breaking/placing while dragging from hotbar.
+                    return;
+                }
             }
         }
         
@@ -1200,51 +1239,70 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         }
 
         if (draggedStack != null) {
-            int targetIndex = getSlotAt(e.getX(), e.getY());
             Inventory inv = player.getInventory();
-            
-            if (targetIndex >= 0) {
-                if (targetIndex < 100) {
-                    // Standard slot
-                    ItemStack temp = inv.getSlots()[targetIndex];
-                    inv.getSlots()[targetIndex] = draggedStack;
-                    if (draggedSourceIdx < 100) { // Was from standard slot
-                        inv.getSlots()[draggedSourceIdx] = temp;
-                    } else { // Was from equipment slot
-                        inv.getEquipment()[draggedSourceIdx - 100] = temp;
-                    }
-                } else {
-                    // Equipment slot
-                    int eqIdx = targetIndex - 100;
-                    Tile.Category[] cats = {Tile.Category.HAT, Tile.Category.MASK, Tile.Category.SHIRT, Tile.Category.PANTS, Tile.Category.SHOES, Tile.Category.BACK};
-                    if (draggedStack.tile.category == cats[eqIdx]) {
-                        ItemStack temp = inv.getEquipment()[eqIdx];
-                        inv.getEquipment()[eqIdx] = draggedStack;
+            if (inventoryOpen) {
+                int targetIndex = getSlotAt(e.getX(), e.getY());
+                
+                if (targetIndex >= 0) {
+                    if (targetIndex < 100) {
+                        // Standard slot
+                        ItemStack temp = inv.getSlots()[targetIndex];
+                        inv.getSlots()[targetIndex] = draggedStack;
                         if (draggedSourceIdx < 100) { // Was from standard slot
                             inv.getSlots()[draggedSourceIdx] = temp;
                         } else { // Was from equipment slot
                             inv.getEquipment()[draggedSourceIdx - 100] = temp;
                         }
                     } else {
-                        // Return to source if not compatible
-                        if (draggedSourceIdx < 100) {
-                            inv.getSlots()[draggedSourceIdx] = draggedStack;
+                        // Equipment slot
+                        int eqIdx = targetIndex - 100;
+                        Tile.Category[] cats = {Tile.Category.HAT, Tile.Category.MASK, Tile.Category.SHIRT, Tile.Category.PANTS, Tile.Category.SHOES, Tile.Category.BACK};
+                        if (draggedStack.tile.category == cats[eqIdx]) {
+                            ItemStack temp = inv.getEquipment()[eqIdx];
+                            inv.getEquipment()[eqIdx] = draggedStack;
+                            if (draggedSourceIdx < 100) { // Was from standard slot
+                                inv.getSlots()[draggedSourceIdx] = temp;
+                            } else { // Was from equipment slot
+                                inv.getEquipment()[draggedSourceIdx - 100] = temp;
+                            }
                         } else {
-                            inv.getEquipment()[draggedSourceIdx - 100] = draggedStack;
+                            // Return to source if not compatible
+                            if (draggedSourceIdx < 100) {
+                                inv.getSlots()[draggedSourceIdx] = draggedStack;
+                            } else {
+                                inv.getEquipment()[draggedSourceIdx - 100] = draggedStack;
+                            }
                         }
                     }
-                }
-            } else {
-                // Drop item
-                // Equippable items should not be dropped onto the ground.
-                if (draggedStack.tile.category != Tile.Category.BLOCK) {
-                    returnDraggedStackToSource();
                 } else {
+                    // Drop item (outside expanded inventory area)
+                    if (draggedStack.tile.category != Tile.Category.BLOCK) {
+                        returnDraggedStackToSource();
+                    } else {
+                        droppedItems.add(new ItemEntity(player.x, player.y, draggedStack.tile, draggedStack.isBackground));
+                    }
+                }
+            } else if (draggingFromHotbar) {
+                // Hotbar drag released outside expanded inventory.
+                int hbTarget = getHotbarSlotAt(e.getX(), e.getY());
+                if (hbTarget != -1) {
+                    // Swap with target hotbar slot.
+                    ItemStack temp = inv.getSlots()[hbTarget];
+                    inv.getSlots()[hbTarget] = draggedStack;
+                    inv.getSlots()[draggedHotbarIdx] = temp;
+                } else {
+                    // Drop to world.
                     droppedItems.add(new ItemEntity(player.x, player.y, draggedStack.tile, draggedStack.isBackground));
                 }
+            } else {
+                // Fallback: drop to world (shouldn't happen often).
+                droppedItems.add(new ItemEntity(player.x, player.y, draggedStack.tile, draggedStack.isBackground));
             }
+
             draggedStack = null;
             draggedSourceIdx = -1;
+            draggingFromHotbar = false;
+            draggedHotbarIdx = -1;
         }
 
         if (SwingUtilities.isLeftMouseButton(e))  { leftHeld  = false; resetBreak(); }
