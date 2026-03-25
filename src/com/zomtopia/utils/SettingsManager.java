@@ -4,7 +4,7 @@ import java.io.*;
 import java.util.Properties;
 
 public class SettingsManager {
-    private static final String SETTINGS_FILE = "settings.properties";
+    private static final String SETTINGS_FILE = System.getProperty("user.dir") + File.separator + "settings.properties";
     private static Properties properties = new Properties();
 
     static {
