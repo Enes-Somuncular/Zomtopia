@@ -92,8 +92,8 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             double dy = py - (item.y + ItemEntity.SIZE / 2.0);
             double distSq = dx * dx + dy * dy;
 
-            if (distSq < Math.pow(World.TILE_SIZE * 0.9, 2)) {
-                if (player.getInventory().addItem(item.tile, 1)) {
+            if (distSq < Math.pow(World.TILE_SIZE * 1.5, 2)) {
+                if (player.getInventory().addItem(item.tile, 1, item.isBackground)) {
                     droppedItems.remove(item);
                 }
             }
@@ -146,8 +146,8 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                     brokenTile = bgTile;
                     world.setBg(tx, ty, Tile.AIR);
                 }
-                // Spawn dropped item instead of direct add
-                droppedItems.add(new ItemEntity(tx * World.TILE_SIZE + 8, ty * World.TILE_SIZE + 8, brokenTile));
+                // Spawn dropped item with layer info
+                droppedItems.add(new ItemEntity(tx * World.TILE_SIZE + 8, ty * World.TILE_SIZE + 8, brokenTile, !hasFg));
                 resetBreak();
             }
         } else {
@@ -171,12 +171,22 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                     Rectangle tileRect   = new Rectangle(tx * World.TILE_SIZE, ty * World.TILE_SIZE,
                                                           World.TILE_SIZE, World.TILE_SIZE);
                     if (!playerRect.intersects(tileRect)) {
-                        if (world.getFg(tx, ty) == Tile.AIR) {
-                            world.setFg(tx, ty, selStack.tile);
-                            player.getInventory().removeItem(selStack.tile);
-                        } else if (world.getBg(tx, ty) == Tile.AIR) {
-                            world.setBg(tx, ty, selStack.tile);
-                            player.getInventory().removeItem(selStack.tile);
+                        if (selStack.isBackground) {
+                            // Only place as background if AIR
+                            if (world.getBg(tx, ty) == Tile.AIR) {
+                                world.setBg(tx, ty, selStack.tile);
+                                player.getInventory().removeItem(selStack.tile);
+                            }
+                        } else {
+                            if (world.getFg(tx, ty) == Tile.AIR) {
+                                world.setFg(tx, ty, selStack.tile);
+                                player.getInventory().removeItem(selStack.tile);
+                            } else if (world.getBg(tx, ty) == Tile.AIR) {
+                                // Fallback to BG if FG is occupied but somehow we are trying to place FG? 
+                                // Actually, let's keep it simple: FG items only place in FG.
+                                world.setFg(tx, ty, selStack.tile);
+                                player.getInventory().removeItem(selStack.tile);
+                            }
                         }
                     }
                 }
@@ -401,9 +411,10 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             boolean sel = (i == selectedSlot);
             com.zomtopia.game.inventory.ItemStack stack = player.getInventory().getStack(i);
 
-            g2.setColor(sel ? new Color(255, 255, 255, 200) : new Color(0, 0, 0, 140));
+            Color slotBg = sel ? new Color(255, 255, 255, 200) : (inventoryOpen ? new Color(60, 60, 60, 230) : new Color(0, 0, 0, 140));
+            g2.setColor(slotBg);
             g2.fillRoundRect(sx, y, slotSize, slotSize, 8, 8);
-            g2.setColor(sel ? Color.YELLOW : Color.GRAY);
+            g2.setColor(sel ? Color.YELLOW : (inventoryOpen ? Color.LIGHT_GRAY : Color.GRAY));
             g2.setStroke(new BasicStroke(sel ? 2.5f : 1.5f));
             g2.drawRoundRect(sx, y, slotSize, slotSize, 8, 8);
             g2.setStroke(new BasicStroke(1f));
@@ -496,8 +507,11 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                 com.zomtopia.game.inventory.ItemStack targetStack = player.getInventory().getStack(targetSlot);
                 player.getInventory().setStack(targetSlot, draggedStack);
                 player.getInventory().setStack(draggedSourceIdx, targetStack);
+            } else if (inventoryOpen) {
+                // Drop if inventory open and released in "void"
+                droppedItems.add(new ItemEntity(player.x + Player.W/2, player.y + Player.H/2, draggedStack.tile, draggedStack.isBackground));
             } else {
-                // Return to source
+                // Return to source (emergency)
                 player.getInventory().setStack(draggedSourceIdx, draggedStack);
             }
             draggedStack = null;

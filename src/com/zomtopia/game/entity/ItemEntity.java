@@ -7,15 +7,17 @@ public class ItemEntity {
     public double x, y;
     public double vx, vy;
     public final Tile tile;
+    public final boolean isBackground;
     
     public static final int SIZE = 16;
     private static final double GRAVITY  = 0.3;
     private static final double FRICTION = 0.9;
 
-    public ItemEntity(double x, double y, Tile tile) {
+    public ItemEntity(double x, double y, Tile tile, boolean isBackground) {
         this.x = x;
         this.y = y;
         this.tile = tile;
+        this.isBackground = isBackground;
         // Small random initial pop
         this.vx = (Math.random() - 0.5) * 4;
         this.vy = -Math.random() * 4;

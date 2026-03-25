@@ -8,20 +8,20 @@ public class Inventory {
 
     public Inventory() {
         slots = new ItemStack[SIZE];
-        // Starting items for testing/demo
-        addItem(Tile.DIRT, 20);
-        addItem(Tile.GRASS, 10);
-        addItem(Tile.ROCK, 5);
-        addItem(Tile.WOOD, 5);
-        addItem(Tile.LEAVES, 5);
+        // Starting items for testing/demo (all FG)
+        addItem(Tile.DIRT, 20, false);
+        addItem(Tile.GRASS, 10, false);
+        addItem(Tile.ROCK, 5, false);
+        addItem(Tile.WOOD, 5, false);
+        addItem(Tile.LEAVES, 5, false);
     }
 
-    public boolean addItem(Tile tile, int count) {
+    public boolean addItem(Tile tile, int count, boolean isBackground) {
         if (tile == Tile.AIR || tile == Tile.BEDROCK) return false;
 
-        // Try to add to existing stack
+        // Try to add to existing stack (must match tile AND layer type)
         for (ItemStack stack : slots) {
-            if (stack != null && stack.tile == tile) {
+            if (stack != null && stack.tile == tile && stack.isBackground == isBackground) {
                 stack.amount += count;
                 return true;
             }
@@ -30,7 +30,7 @@ public class Inventory {
         // Try to find empty slot
         for (int i = 0; i < slots.length; i++) {
             if (slots[i] == null) {
-                slots[i] = new ItemStack(tile, count);
+                slots[i] = new ItemStack(tile, count, isBackground);
                 return true;
             }
         }
