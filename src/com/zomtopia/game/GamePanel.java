@@ -245,22 +245,48 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             g2.drawRect(hsx, hsy, T, T);
             g2.setStroke(new BasicStroke(1f));
         }
-        // --- Player sprite ---
+        // --- Stickman Player sprite ---
         int spx = camera.toScreenX((int) player.x);
         int spy = camera.toScreenY((int) player.y);
+        int w = Player.W;
+        int h = player.crouching ? 30 : 60;
         
-        // Body
-        g2.setColor(new Color(60, 120, 200));
-        g2.fillRoundRect(spx + 4, spy + 18, Player.W - 8, Player.H - 18, 6, 6);
+        g2.setStroke(new BasicStroke(2.5f));
+        g2.setColor(Color.BLACK); // Outline / Stick
+        
+        int centerX = spx + w/2;
+        int headSize = 16;
         
         // Head
-        g2.setColor(new Color(230, 185, 140));
-        g2.fillOval(spx + 4, spy, 16, 16);
+        g2.drawOval(centerX - headSize/2, spy, headSize, headSize);
         
-        // Eyes
-        g2.setColor(new Color(50, 50, 80));
-        g2.fillOval(spx + 7, spy + 4, 3, 3);
-        g2.fillOval(spx + 13, spy + 4, 3, 3);
+        // Body (Spine)
+        int spineBottomY = spy + h - 14;
+        g2.drawLine(centerX, spy + headSize, centerX, spineBottomY);
+        
+        // Arms
+        int armY = spy + headSize + 6;
+        if (player.crouching) {
+            g2.drawLine(centerX, armY, centerX - 10, armY + 6); // Left
+            g2.drawLine(centerX, armY, centerX + 10, armY + 6); // Right
+        } else {
+            g2.drawLine(centerX, armY, centerX - 12, armY + 10);
+            g2.drawLine(centerX, armY, centerX + 12, armY + 10);
+        }
+        
+        // Legs
+        if (player.crouching) {
+            g2.drawLine(centerX, spineBottomY, centerX - 8, spy + h); // Left
+            g2.drawLine(centerX, spineBottomY, centerX + 8, spy + h); // Right
+        } else {
+            double walkCycle = (System.currentTimeMillis() % 400) / 400.0;
+            int legOffset = (Math.abs(player.vx) > 0.5) ? (int)(Math.sin(walkCycle * Math.PI * 2) * 10) : 0;
+            
+            g2.drawLine(centerX, spineBottomY, centerX - 6 + legOffset, spy + h); // Left
+            g2.drawLine(centerX, spineBottomY, centerX + 6 - legOffset, spy + h); // Right
+        }
+        
+        g2.setStroke(new BasicStroke(1f));
 
         drawDroppedItems(g2);
         drawHUD(g2);

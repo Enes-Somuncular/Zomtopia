@@ -36,7 +36,8 @@ public class Player {
     public boolean onGround = false;
 
     // Input flags (set by GamePanel)
-    public boolean left, right, jump, sprinting;
+    public boolean left, right, jump, sprinting, crouchInput;
+    public boolean crouching;
 
     public void update(World world) {
         // Horizontal
@@ -69,20 +70,40 @@ public class Player {
             onGround = false;
         }
 
+        // --- Crouching Logic ---
+        int targetH = crouchInput ? 30 : 60;
+        
+        // If trying to stand up, check if there's space
+        if (!crouchInput && crouching) {
+            if (world.isRectBlocked(x, y - (60 - 30), W, 60)) {
+                targetH = 30; // Force stay crouched
+            }
+        }
+        
+        int oldH = crouching ? 30 : 60;
+        int newH = targetH;
+        
+        // Adjust y to keep feet on ground when changing height
+        if (newH != oldH) {
+            y += (oldH - newH);
+        }
+        crouching = (newH == 30);
+        int h = newH;
+
         // Gravity
         vy += GRAVITY;
         if (vy > MAX_VY) vy = MAX_VY;
 
         // Move X with collision
         x += vx;
-        if (world.isRectBlocked(x, y, W, H)) {
+        if (world.isRectBlocked(x, y, W, h)) {
             x -= vx;
             vx = 0;
         }
 
         // Move Y with collision
         y += vy;
-        if (world.isRectBlocked(x, y, W, H)) {
+        if (world.isRectBlocked(x, y, W, h)) {
             if (vy > 0) onGround = true;
             y -= vy;
             vy = 0;
@@ -92,7 +113,7 @@ public class Player {
 
         // Clamp to world
         double maxX = World.WIDTH  * World.TILE_SIZE - W;
-        double maxY = World.HEIGHT * World.TILE_SIZE - H;
+        double maxY = World.HEIGHT * World.TILE_SIZE - h;
         if (x < 0) { x = 0; vx = 0; }
         if (x > maxX) { x = maxX; vx = 0; }
         if (y < 0) { y = 0; vy = 0; }
@@ -104,6 +125,7 @@ public class Player {
         if (key == KeyEvent.VK_RIGHT || key == KeyEvent.VK_D) right = true;
         if (key == KeyEvent.VK_UP    || key == KeyEvent.VK_W || key == KeyEvent.VK_SPACE) jump = true;
         if (key == KeyEvent.VK_SHIFT) sprinting = true;
+        if (key == KeyEvent.VK_CONTROL) crouchInput = true;
     }
 
     public void handleKeyRelease(int key) {
@@ -111,5 +133,6 @@ public class Player {
         if (key == KeyEvent.VK_RIGHT || key == KeyEvent.VK_D) right = false;
         if (key == KeyEvent.VK_UP    || key == KeyEvent.VK_W || key == KeyEvent.VK_SPACE) jump = false;
         if (key == KeyEvent.VK_SHIFT) sprinting = false;
+        if (key == KeyEvent.VK_CONTROL) crouchInput = false;
     }
 }
