@@ -45,6 +45,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
 
     // Snapshot of mouse target for sync
     private int targetTX, targetTY;
+    private int targetSX, targetSY; // Screen snapshot
     private boolean isInRangeBreak, isInRangePlace;
 
     public GamePanel() {
@@ -123,6 +124,10 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     private void handleBlockInteraction() {
         targetTX = camera.toTileX(mouseScreenX);
         targetTY = camera.toTileY(mouseScreenY);
+
+        // SNAPSHOT the screen position RIGHT NOW for the renderer
+        targetSX = camera.toScreenX(targetTX * T);
+        targetSY = camera.toScreenY(targetTY * T);
 
         double px = player.x + Player.W / 2.0;
         double py = player.y + Player.H / 2.0;
@@ -254,12 +259,13 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         }
 
         // --- Hover outline (Always visible for clarity, color-coded by range) ---
-        if (!inventoryOpen) {
+        if (!inventoryOpen && !escapeMenuOpen) {
             Tile fg = world.getFg(targetTX, targetTY);
             boolean inRange = (fg != Tile.AIR) ? isInRangeBreak : isInRangePlace;
 
-            int hsx = camera.toScreenX(targetTX * T);
-            int hsy = camera.toScreenY(targetTY * T);
+            // Use the SNAPSHOTTED screen coordinates for perfect sync
+            int hsx = targetSX;
+            int hsy = targetSY;
 
             if (inRange) {
                 g2.setColor(new Color(255, 255, 255, 80)); // White if in range
@@ -809,6 +815,8 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     }
     @Override public void mouseReleased(MouseEvent e) {
         if (SwingUtilities.isLeftMouseButton(e)) leftHeld = false;
+        // Strict button check to avoid Mac modifier interference
+        if (e.getButton() == MouseEvent.BUTTON3) rightHeld = false;
         if (SwingUtilities.isRightMouseButton(e)) rightHeld = false;
 
         if (draggedStack != null) {
