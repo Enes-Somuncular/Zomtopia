@@ -35,7 +35,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
 
     // Mouse state
     private int mouseScreenX, mouseScreenY;
-    private boolean leftHeld, rightHeld;
+    private boolean leftHeld;
 
     public GamePanel() {
         setPreferredSize(new Dimension(800, 600));
@@ -156,40 +156,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             if (breakProgress == 0) resetBreak();
         }
 
-        if (rightHeld) {
-            // Distance check (4 blocks)
-            double px = player.x + Player.W / 2.0;
-            double py = player.y + Player.H / 2.0;
-            double txC = tx * World.TILE_SIZE + World.TILE_SIZE / 2.0;
-            double tyC = ty * World.TILE_SIZE + World.TILE_SIZE / 2.0;
-            double distPlace = Math.sqrt(Math.pow(px - txC, 2) + Math.pow(py - tyC, 2));
-
-            if (distPlace <= 4.5 * World.TILE_SIZE) { 
-                com.zomtopia.game.inventory.ItemStack selStack = player.getInventory().getStack(selectedSlot);
-                if (selStack != null && selStack.amount > 0) {
-                    Rectangle playerRect = new Rectangle((int) player.x, (int) player.y, Player.W, Player.H);
-                    Rectangle tileRect   = new Rectangle(tx * World.TILE_SIZE, ty * World.TILE_SIZE,
-                                                          World.TILE_SIZE, World.TILE_SIZE);
-                    if (!playerRect.intersects(tileRect)) {
-                        if (selStack.isBackground) {
-                            // Only place as background if AIR
-                            if (world.getBg(tx, ty) == Tile.AIR) {
-                                world.setBg(tx, ty, selStack.tile);
-                                player.getInventory().removeItem(selStack.tile, true);
-                            }
-                        } else {
-                            if (world.getFg(tx, ty) == Tile.AIR) {
-                                world.setFg(tx, ty, selStack.tile);
-                                player.getInventory().removeItem(selStack.tile, false);
-                            } else if (world.getBg(tx, ty) == Tile.AIR) {
-                                world.setFg(tx, ty, selStack.tile);
-                                player.getInventory().removeItem(selStack.tile, false);
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        // Note: placement is now handled in mousePressed to avoid multi-placement bug
     }
 
     private void resetBreak() { breakX = -1; breakY = -1; breakProgress = 0; }
@@ -494,8 +461,44 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         }
         
         if (SwingUtilities.isLeftMouseButton(e))  leftHeld  = true;
-        if (SwingUtilities.isRightMouseButton(e)) rightHeld = true;
+        if (SwingUtilities.isRightMouseButton(e)) handleRightClickPlacement(e);
         requestFocusInWindow();
+    }
+
+    private void handleRightClickPlacement(MouseEvent e) {
+        int tx = camera.toTileX(e.getX());
+        int ty = camera.toTileY(e.getY());
+        
+        double px = player.x + Player.W / 2.0;
+        double py = player.y + Player.H / 2.0;
+        double txC = tx * World.TILE_SIZE + World.TILE_SIZE / 2.0;
+        double tyC = ty * World.TILE_SIZE + World.TILE_SIZE / 2.0;
+        double distPlace = Math.sqrt(Math.pow(px - txC, 2) + Math.pow(py - tyC, 2));
+
+        if (distPlace <= 4.5 * World.TILE_SIZE) { 
+            com.zomtopia.game.inventory.ItemStack selStack = player.getInventory().getStack(selectedSlot);
+            if (selStack != null && selStack.amount > 0) {
+                Rectangle playerRect = new Rectangle((int) player.x, (int) player.y, Player.W, Player.H);
+                Rectangle tileRect   = new Rectangle(tx * World.TILE_SIZE, ty * World.TILE_SIZE,
+                                                      World.TILE_SIZE, World.TILE_SIZE);
+                if (!playerRect.intersects(tileRect)) {
+                    if (selStack.isBackground) {
+                        if (world.getBg(tx, ty) == Tile.AIR) {
+                            world.setBg(tx, ty, selStack.tile);
+                            player.getInventory().removeItem(selStack.tile, true);
+                        }
+                    } else {
+                        if (world.getFg(tx, ty) == Tile.AIR) {
+                            world.setFg(tx, ty, selStack.tile);
+                            player.getInventory().removeItem(selStack.tile, false);
+                        } else if (world.getBg(tx, ty) == Tile.AIR) {
+                            world.setFg(tx, ty, selStack.tile);
+                            player.getInventory().removeItem(selStack.tile, false);
+                        }
+                    }
+                }
+            }
+        }
     }
     @Override public void mouseReleased(MouseEvent e) {
         if (draggedStack != null) {
@@ -517,7 +520,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         }
 
         if (SwingUtilities.isLeftMouseButton(e))  { leftHeld  = false; resetBreak(); }
-        if (SwingUtilities.isRightMouseButton(e)) rightHeld = false;
+        if (SwingUtilities.isRightMouseButton(e)) { /* No longer needed for placement */ }
     }
     @Override public void mouseClicked(MouseEvent e) {}
     @Override public void mouseEntered(MouseEvent e) {}
