@@ -42,6 +42,28 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     private long lastPlacementTime = 0;
     private static final long PLACEMENT_COOLDOWN = 150;
     private static final int T = World.TILE_SIZE;
+    private static final double BREAK_RANGE_TILES = 3.0;
+    private static final double PLACE_RANGE_TILES = 4.0;
+
+    private double distanceFromPlayerRectToTileCenter(int tx, int ty) {
+        // Better "reach" estimation than center-to-center distance:
+        // measure from the nearest point on the player's rect to the tile center.
+        int h = player.crouching ? 30 : 60;
+        double rectLeft = player.x;
+        double rectRight = player.x + Player.W;
+        double rectTop = player.y;
+        double rectBottom = player.y + h;
+
+        double tileCX = tx * T + T / 2.0;
+        double tileCY = ty * T + T / 2.0;
+
+        double closestX = Math.max(rectLeft, Math.min(tileCX, rectRight));
+        double closestY = Math.max(rectTop, Math.min(tileCY, rectBottom));
+
+        double dx = tileCX - closestX;
+        double dy = tileCY - closestY;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
 
     // Snapshot of mouse target for sync
     private int targetTX, targetTY;
@@ -146,15 +168,11 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         targetSX = camera.toScreenX(targetTX * T);
         targetSY = camera.toScreenY(targetTY * T);
 
-        double px = player.x + Player.W / 2.0;
-        double py = player.y + Player.H / 2.0;
-        double txC = targetTX * T + T / 2.0;
-        double tyC = targetTY * T + T / 2.0;
-        double dist = Math.sqrt(Math.pow(txC - px, 2) + Math.pow(tyC - py, 2)) / T;
-        
-        // Increased ranges for smoother movement interaction
-        isInRangeBreak = (dist <= 4.5);
-        isInRangePlace = (dist <= 5.5);
+        double reachDistPx = distanceFromPlayerRectToTileCenter(targetTX, targetTY);
+
+        // Interaction ranges: break=3 tiles, place=4 tiles (matches HUD)
+        isInRangeBreak = (reachDistPx <= BREAK_RANGE_TILES * T);
+        isInRangePlace = (reachDistPx <= PLACE_RANGE_TILES * T);
 
         if (leftHeld && !inventoryOpen) {
             player.startPunch();
@@ -802,13 +820,9 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     }
 
     private void handleRightClickPlacement(int tx, int ty) { // Modified to take tx, ty
-        double px = player.x + Player.W / 2.0;
-        double py = player.y + Player.H / 2.0;
-        double txC = tx * World.TILE_SIZE + World.TILE_SIZE / 2.0;
-        double tyC = ty * World.TILE_SIZE + World.TILE_SIZE / 2.0;
-        double distPlace = Math.sqrt(Math.pow(px - txC, 2) + Math.pow(py - tyC, 2));
+        double reachDistPx = distanceFromPlayerRectToTileCenter(tx, ty);
 
-        if (distPlace <= 4.5 * World.TILE_SIZE) { 
+        if (reachDistPx <= PLACE_RANGE_TILES * World.TILE_SIZE) { 
             com.zomtopia.game.inventory.ItemStack selStack = player.getInventory().getStack(selectedSlot);
             if (selStack != null && selStack.amount > 0) {
                 // Animasyon tetikle
