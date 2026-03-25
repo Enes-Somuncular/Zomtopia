@@ -132,7 +132,11 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                 if (rightHeld && !inventoryOpen) {
                     long now = System.currentTimeMillis();
                     if (now - lastPlacementTime >= PLACEMENT_COOLDOWN) {
-                        if (isInRangePlace) {
+                        // If we are holding a wearable, right-click should auto-equip.
+                        // Only if auto-equip fails do we attempt block placement.
+                        if (tryAutoEquipFromHotbar()) {
+                            lastPlacementTime = now;
+                        } else if (isInRangePlace) {
                             handleRightClickPlacement(targetTX, targetTY);
                             lastPlacementTime = now;
                         }
@@ -142,6 +146,49 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             repaint();
         });
         gameTimer.start();
+    }
+
+    // Auto-equip a held wearable (from hotbar) on right-click.
+    // Returns true if an equip action happened; false otherwise.
+    private boolean tryAutoEquipFromHotbar() {
+        com.zomtopia.game.inventory.ItemStack selStack = player.getInventory().getStack(selectedSlot);
+        if (selStack == null || selStack.tile == Tile.AIR) return false;
+        if (selStack.tile.category == Tile.Category.BLOCK) return false;
+        if (selStack.tile.category == null) return false;
+
+        // Equipment slot mapping order (must match Tile categories used elsewhere).
+        Tile.Category[] cats = {
+            Tile.Category.HAT,
+            Tile.Category.MASK,
+            Tile.Category.SHIRT,
+            Tile.Category.PANTS,
+            Tile.Category.SHOES,
+            Tile.Category.BACK
+        };
+
+        int eqIdx = -1;
+        for (int i = 0; i < cats.length; i++) {
+            if (selStack.tile.category == cats[i]) {
+                eqIdx = i;
+                break;
+            }
+        }
+        if (eqIdx == -1) return false;
+
+        ItemStack[] equip = player.getInventory().getEquipment();
+        ItemStack current = equip[eqIdx];
+        if (current != null && current.tile != Tile.AIR) {
+            // Slot already occupied; do nothing.
+            return false;
+        }
+
+        // Equip exactly 1 unit from the hotbar stack.
+        equip[eqIdx] = new ItemStack(selStack.tile, 1, false);
+        selStack.amount -= 1;
+        if (selStack.amount <= 0) {
+            player.getInventory().setStack(selectedSlot, null);
+        }
+        return true;
     }
 
     private void openDeathMenu() {
@@ -1224,10 +1271,12 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             leftHeld = true;
         } else if (SwingUtilities.isRightMouseButton(e)) {
             rightHeld = true;
-            // Immediate placement on first press if in range
-            if (isInRangePlace && !inventoryOpen) {
-                handleRightClickPlacement(targetTX, targetTY);
-                lastPlacementTime = System.currentTimeMillis();
+            if (!inventoryOpen) {
+                // Immediate auto-equip first; only place blocks if equip fails.
+                if (!tryAutoEquipFromHotbar() && isInRangePlace) {
+                    handleRightClickPlacement(targetTX, targetTY);
+                    lastPlacementTime = System.currentTimeMillis();
+                }
             }
         }
         requestFocusInWindow();
