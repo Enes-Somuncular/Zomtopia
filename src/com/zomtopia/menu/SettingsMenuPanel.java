@@ -16,8 +16,8 @@ public class SettingsMenuPanel extends JPanel {
         setLayout(new BorderLayout());
 
         try {
-            String basePath = new File("").getAbsolutePath();
-            backgroundImage = new ImageIcon(basePath + "/res/background.png").getImage();
+            String bgPath = new File("res/settings_menu_bg.png").exists() ? "res/settings_menu_bg.png" : "../res/settings_menu_bg.png";
+            backgroundImage = new ImageIcon(bgPath).getImage();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -67,13 +67,16 @@ public class SettingsMenuPanel extends JPanel {
         JButton button = new JButton(text);
         button.setFont(new Font("Arial", Font.BOLD, 20));
         button.setForeground(Color.WHITE);
-        button.setBackground(new Color(40, 40, 40, 200));
+        button.setBackground(new Color(20, 20, 20, 160));
         button.setFocusPainted(false);
         button.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(Color.GRAY, 2),
                 BorderFactory.createEmptyBorder(10, 40, 10, 40)));
         button.setOpaque(true);
-        button.setMaximumSize(new Dimension(250, 50));
+        Dimension fixedSize = new Dimension(250, 50);
+        button.setPreferredSize(fixedSize);
+        button.setMinimumSize(fixedSize);
+        button.setMaximumSize(fixedSize);
         button.setCursor(new Cursor(Cursor.HAND_CURSOR));
         return button;
     }

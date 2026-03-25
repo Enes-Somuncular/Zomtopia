@@ -17,9 +17,7 @@ public class MainMenuPanel extends JPanel {
 
         // Load Background Image
         try {
-            // Find absolute path to res folder
-            String basePath = new File("").getAbsolutePath();
-            String bgPath = basePath + "/res/background.png";
+            String bgPath = new File("res/background.png").exists() ? "res/background.png" : "../res/background.png";
             backgroundImage = new ImageIcon(bgPath).getImage();
         } catch (Exception e) {
             e.printStackTrace();
@@ -64,7 +62,7 @@ public class MainMenuPanel extends JPanel {
         button.setAlignmentX(Component.CENTER_ALIGNMENT);
         button.setFont(new Font("Arial", Font.BOLD, 24));
         button.setForeground(Color.WHITE);
-        button.setBackground(new Color(40, 40, 40, 200)); // Semi-transparent dark background
+        button.setBackground(new Color(20, 20, 20, 160)); // More transparent for better blend
         button.setFocusPainted(false);
         button.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(Color.GRAY, 2),

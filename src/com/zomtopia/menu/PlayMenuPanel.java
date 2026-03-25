@@ -16,9 +16,10 @@ public class PlayMenuPanel extends JPanel {
 
         // Load Background Image
         try {
-            String basePath = new File("").getAbsolutePath();
-            backgroundImage = new ImageIcon(basePath + "/res/background.png").getImage();
-            characterImage = new ImageIcon(basePath + "/res/character.png").getImage();
+            String bgPath = new File("res/play_menu_bg.png").exists() ? "res/play_menu_bg.png" : "../res/play_menu_bg.png";
+            String charPath = new File("res/character.png").exists() ? "res/character.png" : "../res/character.png";
+            backgroundImage = new ImageIcon(bgPath).getImage();
+            characterImage = new ImageIcon(charPath).getImage();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -89,7 +90,7 @@ public class PlayMenuPanel extends JPanel {
         JButton button = new JButton(text);
         button.setFont(new Font("Arial", Font.BOLD, 20));
         button.setForeground(Color.WHITE);
-        button.setBackground(new Color(40, 40, 40, 200));
+        button.setBackground(new Color(20, 20, 20, 160));
         button.setFocusPainted(false);
         button.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(Color.GRAY, 2),
