@@ -1009,6 +1009,9 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         if (reachDistPx <= PLACE_RANGE_TILES * World.TILE_SIZE) { 
             com.zomtopia.game.inventory.ItemStack selStack = player.getInventory().getStack(selectedSlot);
             if (selStack != null && selStack.amount > 0) {
+                // Equippable items should not be placed into the world as blocks.
+                if (selStack.tile.category != Tile.Category.BLOCK) return;
+
                 // Animasyon tetikle
                 player.startPunch();
 
@@ -1032,6 +1035,17 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             }
         }
     }
+
+    private void returnDraggedStackToSource() {
+        if (draggedStack == null || draggedSourceIdx < 0) return;
+        Inventory inv = player.getInventory();
+        if (draggedSourceIdx < 100) {
+            inv.getSlots()[draggedSourceIdx] = draggedStack;
+        } else {
+            inv.getEquipment()[draggedSourceIdx - 100] = draggedStack;
+        }
+    }
+
     @Override public void mouseReleased(MouseEvent e) {
         if (SwingUtilities.isLeftMouseButton(e)) {
             leftHeld = false;
@@ -1084,7 +1098,12 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                 }
             } else {
                 // Drop item
-                droppedItems.add(new ItemEntity(player.x, player.y, draggedStack.tile, draggedStack.isBackground));
+                // Equippable items should not be dropped onto the ground.
+                if (draggedStack.tile.category != Tile.Category.BLOCK) {
+                    returnDraggedStackToSource();
+                } else {
+                    droppedItems.add(new ItemEntity(player.x, player.y, draggedStack.tile, draggedStack.isBackground));
+                }
             }
             draggedStack = null;
             draggedSourceIdx = -1;
