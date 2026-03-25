@@ -51,12 +51,21 @@ public class PlayMenuPanel extends JPanel {
 
         nextButton.addActionListener(e -> {
             AudioManager.getInstance().playMenuClick();
-            String name = nameField.getText();
-            if (name.trim().isEmpty()) {
+            String name = nameField.getText().trim();
+            if (name.isEmpty()) {
                 JOptionPane.showMessageDialog(this, "Lütfen bir isim giriniz!", "Hata", JOptionPane.WARNING_MESSAGE);
-            } else {
-                JOptionPane.showMessageDialog(this, "Hoşgeldin, " + name + "!\nOyun yükleniyor...", "Zomtopia", JOptionPane.INFORMATION_MESSAGE);
+                return;
             }
+            // Launch the actual game world
+            JFrame gameFrame = new JFrame("Zomtopia - " + name);
+            com.zomtopia.game.GamePanel gp = new com.zomtopia.game.GamePanel();
+            gameFrame.setContentPane(gp);
+            gameFrame.pack();
+            gameFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+            gameFrame.setLocationRelativeTo(null);
+            gameFrame.setResizable(false);
+            gameFrame.setVisible(true);
+            gp.requestFocusInWindow();
         });
         backButton.addActionListener(e -> { AudioManager.getInstance().playMenuClick(); gameApp.showPanel("MainMenu"); });
 
