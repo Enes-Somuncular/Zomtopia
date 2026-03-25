@@ -133,10 +133,11 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         double py = player.y + Player.H / 2.0;
         double txC = targetTX * T + T / 2.0;
         double tyC = targetTY * T + T / 2.0;
-        double dist = Math.sqrt(Math.pow(px - txC, 2) + Math.pow(py - tyC, 2));
+        double dist = Math.sqrt(Math.pow(txC - px, 2) + Math.pow(tyC - py, 2)) / T;
         
-        isInRangeBreak = (dist <= 3.0 * T);
-        isInRangePlace = (dist <= 4.0 * T);
+        // Increased ranges for smoother movement interaction
+        isInRangeBreak = (dist <= 4.5);
+        isInRangePlace = (dist <= 5.5);
 
         if (leftHeld && !inventoryOpen) {
             player.startPunch();
@@ -814,10 +815,16 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         }
     }
     @Override public void mouseReleased(MouseEvent e) {
-        if (SwingUtilities.isLeftMouseButton(e)) leftHeld = false;
+        if (SwingUtilities.isLeftMouseButton(e)) {
+            leftHeld = false;
+            resetBreak();
+        }
+        
         // Strict button check to avoid Mac modifier interference
-        if (e.getButton() == MouseEvent.BUTTON3) rightHeld = false;
-        if (SwingUtilities.isRightMouseButton(e)) rightHeld = false;
+        // ONLY release if it's explicitly the Right Button
+        if (e.getButton() == MouseEvent.BUTTON3 || SwingUtilities.isRightMouseButton(e)) {
+            rightHeld = false;
+        }
 
         if (draggedStack != null) {
             int targetIndex = getSlotAt(e.getX(), e.getY());
