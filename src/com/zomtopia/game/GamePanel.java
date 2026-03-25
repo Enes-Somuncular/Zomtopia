@@ -38,8 +38,12 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     private int mouseScreenX, mouseScreenY;
     private boolean leftHeld, rightHeld;
     private long lastPlacementTime = 0;
-    private static final long PLACEMENT_COOLDOWN = 180;
+    private static final long PLACEMENT_COOLDOWN = 160; // 160 for faster feel
     private static final int T = World.TILE_SIZE;
+
+    // Snapshot of mouse target for sync
+    private int targetTX, targetTY;
+    private boolean isInRange;
 
     public GamePanel() {
         setPreferredSize(new Dimension(800, 600));
@@ -76,22 +80,20 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
 
     private void startGameLoop() {
         gameTimer = new Timer(16, e -> {
-            handleBlockInteraction();
             player.update(world);
-            updateItems();
             camera.follow(player.x + Player.W / 2.0, player.y + Player.H / 2.0);
-            repaint();
-
+            updateItems();
+            handleBlockInteraction();
+            
             // Continuous placement with cooldown
             if (rightHeld && !inventoryOpen) {
                 long now = System.currentTimeMillis();
                 if (now - lastPlacementTime >= PLACEMENT_COOLDOWN) {
-                    int tx = camera.toTileX(mouseScreenX);
-                    int ty = camera.toTileY(mouseScreenY);
-                    handleRightClickPlacement(tx, ty);
+                    handleRightClickPlacement(targetTX, targetTY);
                     lastPlacementTime = now;
                 }
             }
+            repaint();
         });
         gameTimer.start();
     }
@@ -113,26 +115,27 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
 
     /** Called every tick: handle held mouse buttons */
     private void handleBlockInteraction() {
-        int tx = camera.toTileX(mouseScreenX);
-        int ty = camera.toTileY(mouseScreenY);
+        targetTX = camera.toTileX(mouseScreenX);
+        targetTY = camera.toTileY(mouseScreenY);
 
-        if (leftHeld) {
-            // Animasyon tetikle
+        double px = player.x + Player.W / 2.0;
+        double py = player.y + Player.H / 2.0;
+        double txC = targetTX * T + T / 2.0;
+        double tyC = targetTY * T + T / 2.0;
+        double dist = Math.sqrt(Math.pow(px - txC, 2) + Math.pow(py - tyC, 2));
+        
+        isInRange = (dist <= 5.0 * T);
+
+        if (leftHeld && !inventoryOpen) {
             player.startPunch();
-            // Distance check (4.5 blocks)
-            double px = player.x + Player.W / 2.0;
-            double py = player.y + Player.H / 2.0;
-            double txC = tx * World.TILE_SIZE + World.TILE_SIZE / 2.0;
-            double tyC = ty * World.TILE_SIZE + World.TILE_SIZE / 2.0;
-            double distBreak = Math.sqrt(Math.pow(px - txC, 2) + Math.pow(py - tyC, 2));
-
-            if (distBreak > 4.5 * World.TILE_SIZE) { // Allow up to 4.5 blocks
+            
+            if (!isInRange) {
                 resetBreak();
                 return;
             }
 
-            Tile fgTile = world.getFg(tx, ty);
-            Tile bgTile = world.getBg(tx, ty);
+            Tile fgTile = world.getFg(targetTX, targetTY);
+            Tile bgTile = world.getBg(targetTX, targetTY);
 
             boolean hasFg = fgTile != Tile.AIR && fgTile != Tile.BEDROCK;
             boolean hasBg = bgTile != Tile.AIR && bgTile != Tile.BEDROCK;
@@ -143,8 +146,8 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             }
 
             // Reset if moved to different tile
-            if (tx != breakX || ty != breakY) {
-                breakX = tx; breakY = ty; breakProgress = 0;
+            if (targetTX != breakX || targetTY != breakY) {
+                breakX = targetTX; breakY = targetTY; breakProgress = 0;
             }
 
             breakProgress += BREAK_SPEED;
@@ -154,13 +157,13 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                 Tile brokenTile;
                 if (hasFg) {
                     brokenTile = fgTile;
-                    world.setFg(tx, ty, Tile.AIR);
+                    world.setFg(targetTX, targetTY, Tile.AIR);
                 } else {
                     brokenTile = bgTile;
-                    world.setBg(tx, ty, Tile.AIR);
+                    world.setBg(targetTX, targetTY, Tile.AIR);
                 }
                 // Spawn dropped item with layer info
-                droppedItems.add(new ItemEntity(tx * World.TILE_SIZE + 8, ty * World.TILE_SIZE + 8, brokenTile, !hasFg));
+                droppedItems.add(new ItemEntity(targetTX * World.TILE_SIZE + 8, targetTY * World.TILE_SIZE + 8, brokenTile, !hasFg));
                 resetBreak();
             }
         } else {
@@ -243,25 +246,17 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             }
         }
 
-        // --- Hover outline (Only if in range) ---
-        int hoverTX = camera.toTileX(mouseScreenX);
-        int hoverTY = camera.toTileY(mouseScreenY);
-        double px = player.x + Player.W / 2.0;
-        double py = player.y + Player.H / 2.0;
-        double txC = hoverTX * World.TILE_SIZE + World.TILE_SIZE / 2.0;
-        double tyC = hoverTY * World.TILE_SIZE + World.TILE_SIZE / 2.0;
-        double distHover = Math.sqrt(Math.pow(px - txC, 2) + Math.pow(py - tyC, 2));
-
-        if (distHover <= 4.5 * World.TILE_SIZE) {
-            int hsx = camera.toScreenX(hoverTX * T);
-            int hsy = camera.toScreenY(hoverTY * T);
-            g2.setColor(new Color(255, 255, 255, 90));
+        // --- Hover outline (Synced from decision) ---
+        if (isInRange && !inventoryOpen) {
+            int hsx = camera.toScreenX(targetTX * T);
+            int hsy = camera.toScreenY(targetTY * T);
+            g2.setColor(new Color(255, 255, 255, 80));
             g2.fillRect(hsx, hsy, T, T);
             g2.setColor(Color.WHITE);
             g2.setStroke(new BasicStroke(2f));
             g2.drawRect(hsx, hsy, T, T);
-            g2.setStroke(new BasicStroke(1f));
         }
+        g2.setStroke(new BasicStroke(1f));
         // --- Stickman Player sprite ---
         int spx = camera.toScreenX((int) player.x);
         int spy = camera.toScreenY((int) player.y);
@@ -684,11 +679,11 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             leftHeld = true;
         } else if (e.getButton() == MouseEvent.BUTTON3) {
             rightHeld = true;
-            // Immediate placement on first press
-            int tx = camera.toTileX(mouseScreenX);
-            int ty = camera.toTileY(mouseScreenY);
-            handleRightClickPlacement(tx, ty);
-            lastPlacementTime = System.currentTimeMillis();
+            // Immediate placement on first press if in range
+            if (isInRange && !inventoryOpen) {
+                handleRightClickPlacement(targetTX, targetTY);
+                lastPlacementTime = System.currentTimeMillis();
+            }
         }
         requestFocusInWindow();
     }
