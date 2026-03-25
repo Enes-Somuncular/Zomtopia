@@ -2,12 +2,21 @@ package com.zomtopia.game.entity;
 
 import com.zomtopia.game.world.World;
 import com.zomtopia.game.world.Tile;
+import com.zomtopia.game.inventory.Inventory;
 import java.awt.event.KeyEvent;
 
 public class Player {
     // Position (top-left pixel of player rect)
     public double x, y;
     public double vx, vy;
+
+    private final Inventory inventory;
+
+    public Player() {
+        this.inventory = new Inventory();
+    }
+
+    public Inventory getInventory() { return inventory; }
 
     public static final int W = 24;
     public static final int H = 32;

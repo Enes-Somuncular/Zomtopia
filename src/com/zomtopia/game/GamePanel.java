@@ -16,8 +16,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     private final Camera camera;
     private Timer gameTimer;
 
-    // Hotbar
-    private final Tile[] hotbar = {Tile.DIRT, Tile.GRASS, Tile.ROCK, Tile.WOOD, Tile.LEAVES};
+    // Hotbar selection
     private int selectedSlot = 0;
 
     // Block breaking state
@@ -56,7 +55,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             @Override public void mouseDragged(MouseEvent e) { mouseScreenX = e.getX(); mouseScreenY = e.getY(); }
         });
         addMouseWheelListener(e -> {
-            selectedSlot = (selectedSlot + (e.getWheelRotation() > 0 ? 1 : -1) + hotbar.length) % hotbar.length;
+            selectedSlot = (selectedSlot + (e.getWheelRotation() > 0 ? 1 : -1) + com.zomtopia.game.inventory.Inventory.SIZE) % com.zomtopia.game.inventory.Inventory.SIZE;
         });
         setFocusable(true);
         startGameLoop();
@@ -110,11 +109,15 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
 
             if (breakProgress >= 1.0f) {
                 // Break FG first, then BG on next hold
+                Tile brokenTile;
                 if (hasFg) {
+                    brokenTile = fgTile;
                     world.setFg(tx, ty, Tile.AIR);
                 } else {
+                    brokenTile = bgTile;
                     world.setBg(tx, ty, Tile.AIR);
                 }
+                player.getInventory().addItem(brokenTile, 1);
                 resetBreak();
             }
         } else {
@@ -131,16 +134,20 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             double tyC = ty * World.TILE_SIZE + World.TILE_SIZE / 2.0;
             double distPlace = Math.sqrt(Math.pow(px - txC, 2) + Math.pow(py - tyC, 2));
 
-            if (distPlace <= 4.5 * World.TILE_SIZE) { // Allow up to 4 blocks + buffer
-                Rectangle playerRect = new Rectangle((int) player.x, (int) player.y, Player.W, Player.H);
-                Rectangle tileRect   = new Rectangle(tx * World.TILE_SIZE, ty * World.TILE_SIZE,
-                                                      World.TILE_SIZE, World.TILE_SIZE);
-                if (!playerRect.intersects(tileRect)) {
-                    if (world.getFg(tx, ty) == Tile.AIR) {
-                        // Place as foreground if adjacent to something solid or background exists
-                        world.setFg(tx, ty, hotbar[selectedSlot]);
-                    } else if (world.getBg(tx, ty) == Tile.AIR) {
-                        world.setBg(tx, ty, hotbar[selectedSlot]);
+            if (distPlace <= 4.5 * World.TILE_SIZE) { 
+                com.zomtopia.game.inventory.ItemStack selStack = player.getInventory().getStack(selectedSlot);
+                if (selStack != null && selStack.amount > 0) {
+                    Rectangle playerRect = new Rectangle((int) player.x, (int) player.y, Player.W, Player.H);
+                    Rectangle tileRect   = new Rectangle(tx * World.TILE_SIZE, ty * World.TILE_SIZE,
+                                                          World.TILE_SIZE, World.TILE_SIZE);
+                    if (!playerRect.intersects(tileRect)) {
+                        if (world.getFg(tx, ty) == Tile.AIR) {
+                            world.setFg(tx, ty, selStack.tile);
+                            player.getInventory().removeItem(selStack.tile);
+                        } else if (world.getBg(tx, ty) == Tile.AIR) {
+                            world.setBg(tx, ty, selStack.tile);
+                            player.getInventory().removeItem(selStack.tile);
+                        }
                     }
                 }
             }
@@ -218,28 +225,35 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             }
         }
 
-        // --- Hover outline ---
+        // --- Hover outline (Only if in range) ---
         int hoverTX = camera.toTileX(mouseScreenX);
         int hoverTY = camera.toTileY(mouseScreenY);
-        int hsx = camera.toScreenX(hoverTX * T);
-        int hsy = camera.toScreenY(hoverTY * T);
-        g2.setColor(new Color(255, 255, 255, 90));
-        g2.fillRect(hsx, hsy, T, T);
-        g2.setColor(Color.WHITE);
-        g2.setStroke(new BasicStroke(2f));
-        g2.drawRect(hsx, hsy, T, T);
-        g2.setStroke(new BasicStroke(1f));
+        double px = player.x + Player.W / 2.0;
+        double py = player.y + Player.H / 2.0;
+        double txC = hoverTX * T + T / 2.0;
+        double tyC = hoverTY * T + T / 2.0;
+        double distHover = Math.sqrt(Math.pow(px - txC, 2) + Math.pow(py - tyC, 2));
 
+        if (distHover <= 4.5 * T) {
+            int hsx = camera.toScreenX(hoverTX * T);
+            int hsy = camera.toScreenY(hoverTY * T);
+            g2.setColor(new Color(255, 255, 255, 90));
+            g2.fillRect(hsx, hsy, T, T);
+            g2.setColor(Color.WHITE);
+            g2.setStroke(new BasicStroke(2f));
+            g2.drawRect(hsx, hsy, T, T);
+            g2.setStroke(new BasicStroke(1f));
+        }
         // --- Player sprite ---
-        int px = camera.toScreenX((int) player.x);
-        int py = camera.toScreenY((int) player.y);
+        int spx = camera.toScreenX((int) player.x);
+        int spy = camera.toScreenY((int) player.y);
         g2.setColor(new Color(60, 120, 200));
-        g2.fillRoundRect(px + 4, py, Player.W - 8, Player.H, 6, 6);
+        g2.fillRoundRect(spx + 4, spy, Player.W - 8, Player.H, 6, 6);
         g2.setColor(new Color(230, 185, 140));
-        g2.fillOval(px + 4, py - 16, 16, 16);
+        g2.fillOval(spx + 4, spy - 16, 16, 16);
         g2.setColor(new Color(50, 50, 80));
-        g2.fillOval(px + 7, py - 12, 3, 3);
-        g2.fillOval(px + 13, py - 12, 3, 3);
+        g2.fillOval(spx + 7, spy - 12, 3, 3);
+        g2.fillOval(spx + 13, spy - 12, 3, 3);
 
         drawHUD(g2);
     }
@@ -247,7 +261,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     private void drawHUD(Graphics2D g2) {
         int slotSize = 44;
         int padding  = 6;
-        int total    = hotbar.length * (slotSize + padding) - padding;
+        int total    = com.zomtopia.game.inventory.Inventory.SIZE * (slotSize + padding) - padding;
         int sx0      = (getWidth() - total) / 2;
         int y        = getHeight() - slotSize - 16;
 
@@ -282,20 +296,30 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         g2.drawRoundRect(barX, sBarY, barWidth, sBarH, 4, 4);
 
         // --- Hotbar ---
-        for (int i = 0; i < hotbar.length; i++) {
+        for (int i = 0; i < com.zomtopia.game.inventory.Inventory.SIZE; i++) {
             int sx = sx0 + i * (slotSize + padding);
             boolean sel = (i == selectedSlot);
+            com.zomtopia.game.inventory.ItemStack stack = player.getInventory().getStack(i);
+
             g2.setColor(sel ? new Color(255, 255, 255, 200) : new Color(0, 0, 0, 140));
             g2.fillRoundRect(sx, y, slotSize, slotSize, 8, 8);
             g2.setColor(sel ? Color.YELLOW : Color.GRAY);
             g2.setStroke(new BasicStroke(sel ? 2.5f : 1.5f));
             g2.drawRoundRect(sx, y, slotSize, slotSize, 8, 8);
             g2.setStroke(new BasicStroke(1f));
-            g2.setColor(hotbar[i].color);
-            g2.fillRoundRect(sx + 8, y + 8, slotSize - 16, slotSize - 16, 4, 4);
-            g2.setColor(Color.WHITE);
-            g2.setFont(new Font("Arial", Font.BOLD, 9));
-            g2.drawString(hotbar[i].name().substring(0, Math.min(3, hotbar[i].name().length())), sx + 4, y + slotSize - 4);
+
+            if (stack != null && stack.tile != Tile.AIR) {
+                g2.setColor(stack.tile.color);
+                g2.fillRoundRect(sx + 8, y + 8, slotSize - 16, slotSize - 16, 4, 4);
+                
+                // Miktar
+                g2.setColor(Color.WHITE);
+                g2.setFont(new Font("Arial", Font.BOLD, 11));
+                g2.drawString(String.valueOf(stack.amount), sx + 4, y + 14);
+                
+                g2.setFont(new Font("Arial", Font.BOLD, 9));
+                g2.drawString(stack.tile.name().substring(0, Math.min(3, stack.tile.name().length())), sx + 4, y + slotSize - 4);
+            }
         }
 
         // Controls
@@ -327,7 +351,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     @Override public void keyPressed(KeyEvent e) {
         player.handleKeyPress(e.getKeyCode());
         int k = e.getKeyCode() - KeyEvent.VK_1;
-        if (k >= 0 && k < hotbar.length) selectedSlot = k;
+        if (k >= 0 && k < com.zomtopia.game.inventory.Inventory.SIZE) selectedSlot = k;
         if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
             gameTimer.stop();
             JFrame f = (JFrame) SwingUtilities.getWindowAncestor(this);
