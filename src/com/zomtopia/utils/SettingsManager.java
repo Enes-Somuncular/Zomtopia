@@ -38,4 +38,39 @@ public class SettingsManager {
         properties.setProperty("playerName", name);
         save();
     }
+
+    // ---- Audio settings (persistent) ----
+    private static String audioEnabledKey(String channel) {
+        return "audio." + channel + ".enabled";
+    }
+
+    private static String audioVolumeKey(String channel) {
+        return "audio." + channel + ".volume";
+    }
+
+    public static boolean getChannelEnabled(String channel, boolean defaultValue) {
+        String v = properties.getProperty(audioEnabledKey(channel));
+        if (v == null) return defaultValue;
+        return Boolean.parseBoolean(v);
+    }
+
+    public static float getChannelVolume(String channel, float defaultValue) {
+        String v = properties.getProperty(audioVolumeKey(channel));
+        if (v == null) return defaultValue;
+        try {
+            return Float.parseFloat(v);
+        } catch (NumberFormatException e) {
+            return defaultValue;
+        }
+    }
+
+    public static void setChannelEnabled(String channel, boolean enabled) {
+        properties.setProperty(audioEnabledKey(channel), String.valueOf(enabled));
+        save();
+    }
+
+    public static void setChannelVolume(String channel, float volume) {
+        properties.setProperty(audioVolumeKey(channel), String.valueOf(volume));
+        save();
+    }
 }

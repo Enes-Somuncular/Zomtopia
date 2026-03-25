@@ -5,6 +5,8 @@ import java.io.*;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.zomtopia.utils.SettingsManager;
+
 /**
  * Singleton AudioManager handles all game audio channels.
  * Channels: "sfx", "music", "menu"
@@ -19,12 +21,14 @@ public class AudioManager {
     private Clip menuClickClip;
 
     private AudioManager() {
-        channelEnabled.put("sfx", true);
-        channelEnabled.put("music", true);
-        channelEnabled.put("menu", true);
-        channelVolume.put("sfx", 0.8f);
-        channelVolume.put("music", 0.8f);
-        channelVolume.put("menu", 0.8f);
+        // Load audio settings from persistent SettingsManager
+        channelEnabled.put("sfx", SettingsManager.getChannelEnabled("sfx", true));
+        channelEnabled.put("music", SettingsManager.getChannelEnabled("music", true));
+        channelEnabled.put("menu", SettingsManager.getChannelEnabled("menu", true));
+
+        channelVolume.put("sfx", SettingsManager.getChannelVolume("sfx", 0.8f));
+        channelVolume.put("music", SettingsManager.getChannelVolume("music", 0.8f));
+        channelVolume.put("menu", SettingsManager.getChannelVolume("menu", 0.8f));
 
         loadMenuClick();
     }
@@ -70,6 +74,15 @@ public class AudioManager {
         if ("menu".equals(channel) && menuClickClip != null) {
             setClipVolume(menuClickClip, volume);
         }
+    }
+
+    public boolean isChannelEnabled(String channel) {
+        return Boolean.TRUE.equals(channelEnabled.get(channel));
+    }
+
+    public float getChannelVolume(String channel) {
+        Float v = channelVolume.get(channel);
+        return (v != null) ? v : 0.8f;
     }
 
     private void setClipVolume(Clip clip, float volume) {

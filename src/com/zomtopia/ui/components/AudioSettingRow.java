@@ -3,6 +3,7 @@ package com.zomtopia.ui.components;
 import javax.swing.*;
 import java.awt.*;
 import com.zomtopia.audio.AudioManager;
+import com.zomtopia.utils.SettingsManager;
 
 public class AudioSettingRow extends JPanel {
     private boolean isEnabled = true;
@@ -14,6 +15,9 @@ public class AudioSettingRow extends JPanel {
         this.channelKey = channelKey;
         setOpaque(false);
         setMaximumSize(new Dimension(700, 65));
+
+        AudioManager audio = AudioManager.getInstance();
+        isEnabled = audio.isChannelEnabled(channelKey);
 
         // Layout: [Title Label] [ACIK/KAPALI Label] [Slider]
         setLayout(new GridBagLayout());
@@ -45,31 +49,48 @@ public class AudioSettingRow extends JPanel {
         statusLabel.setMinimumSize(new Dimension(70, 40));
         statusLabel.setMaximumSize(new Dimension(70, 40));
 
+        float initialVol = audio.getChannelVolume(channelKey);
+        int initialSliderVal = Math.max(0, Math.min(100, Math.round(initialVol * 100f)));
+
         toggleButton.addActionListener(e -> {
             AudioManager.getInstance().playMenuClick();
             isEnabled = !isEnabled;
             if (isEnabled) {
                 statusLabel.setText("AÇIK");
                 statusLabel.setForeground(new Color(100, 220, 100));
-                AudioManager.getInstance().setChannelEnabled(channelKey, true);
+                audio.setChannelEnabled(channelKey, true);
                 volumeSlider.setEnabled(true);
+                SettingsManager.setChannelEnabled(channelKey, true);
             } else {
                 statusLabel.setText("KAPALI");
                 statusLabel.setForeground(new Color(220, 80, 80));
-                AudioManager.getInstance().setChannelEnabled(channelKey, false);
+                audio.setChannelEnabled(channelKey, false);
                 volumeSlider.setEnabled(false);
+                SettingsManager.setChannelEnabled(channelKey, false);
             }
         });
 
-        volumeSlider = new JSlider(0, 100, 80);
+        volumeSlider = new JSlider(0, 100, initialSliderVal);
         volumeSlider.setOpaque(false);
         volumeSlider.setForeground(Color.WHITE);
         volumeSlider.setMajorTickSpacing(25);
         volumeSlider.setPaintTicks(true);
+        volumeSlider.setEnabled(isEnabled);
+
+        // Reflect initial enabled state in UI
+        if (!isEnabled) {
+            statusLabel.setText("KAPALI");
+            statusLabel.setForeground(new Color(220, 80, 80));
+        }
+
         volumeSlider.setPreferredSize(new Dimension(200, 40));
         volumeSlider.addChangeListener(e -> {
             float vol = volumeSlider.getValue() / 100f;
-            AudioManager.getInstance().setChannelVolume(channelKey, vol);
+            audio.setChannelVolume(channelKey, vol);
+            // Avoid writing to disk continuously while dragging.
+            if (!volumeSlider.getValueIsAdjusting()) {
+                SettingsManager.setChannelVolume(channelKey, vol);
+            }
         });
 
         gbc.gridx = 0; gbc.gridy = 0;
