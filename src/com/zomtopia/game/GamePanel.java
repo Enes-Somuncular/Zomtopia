@@ -3,7 +3,6 @@ package com.zomtopia.game;
 import com.zomtopia.game.entity.ItemEntity;
 import com.zomtopia.game.entity.Player;
 import com.zomtopia.game.world.Tile;
-import com.zomtopia.game.world.Tile.Category;
 import com.zomtopia.game.world.World;
 import com.zomtopia.game.world.WorldGenerator;
 import com.zomtopia.game.inventory.Inventory;
@@ -599,6 +598,83 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         g2.drawString("Scroll / 1-5: Blok Seç", 16, 98);
     }
 
+    // Shared layout for the expanded inventory screen (render + hit testing).
+    private static class InventoryLayout {
+        int invX, invY, invW, invH;
+
+        int gridX, gridY;
+        int gridCols, gridRows;
+        int slotSize, slotPadding;
+
+        int rightX, rightW;
+        int previewX, previewY, previewW, previewH;
+
+        int eqSlotSize, eqPadding;
+        int eqX, eqY;
+    }
+
+    private InventoryLayout computeInventoryLayout() {
+        InventoryLayout l = new InventoryLayout();
+
+        int screenW = getWidth();
+        int screenH = getHeight();
+
+        int margin = 20;
+        l.invW = Math.max(520, Math.min(780, screenW - margin * 2));
+        l.invH = Math.max(360, Math.min(520, screenH - margin * 2));
+        l.invX = (screenW - l.invW) / 2;
+        l.invY = (screenH - l.invH) / 2;
+
+        // Layout tuning: left grid vs right equipment panel.
+        l.rightW = Math.max(190, Math.min(260, l.invW / 3));
+        int gap = 18;
+        int leftX = l.invX + 30;
+        l.rightX = l.invX + l.invW - l.rightW - 20;
+
+        int leftW = l.rightX - leftX - gap;
+
+        l.gridCols = 10;
+        l.gridRows = 4;
+        l.slotPadding = 6;
+
+        int gridAvailableW = leftW;
+        int maxSlotFromW = (gridAvailableW - l.slotPadding * (l.gridCols - 1)) / l.gridCols;
+
+        // Vertically reserve space for title + right panel preview/equipment.
+        int gridYTop = l.invY + 88;
+        int bottomSpace = 20;
+        int maxH = (l.invY + l.invH) - gridYTop - bottomSpace;
+        int maxSlotFromH = (maxH - l.slotPadding * (l.gridRows - 1)) / l.gridRows;
+
+        l.slotSize = Math.max(28, Math.min(48, Math.min(maxSlotFromW, maxSlotFromH)));
+
+        l.gridX = leftX;
+        l.gridY = gridYTop;
+
+        // Right panel: preview box on top, 2x3 equipment grid below.
+        l.previewX = l.rightX;
+        l.previewY = l.invY + 88;
+        l.previewW = l.rightW;
+
+        l.eqPadding = 10;
+        int eqCols = 2;
+        int eqRows = 3;
+        int eqGridW = l.rightW - l.eqPadding * 2;
+        int eqSlotCandidate = eqGridW / eqCols - l.eqPadding;
+        l.eqSlotSize = Math.max(28, Math.min(l.slotSize, Math.min(46, eqSlotCandidate)));
+
+        int eqGridH = l.eqSlotSize * eqRows + l.eqPadding * (eqRows - 1);
+
+        int eqYTop = l.previewY + 20; // preview starts at previewY, but we add 20 for header breathing room
+        int previewBottomBudget = (l.invY + l.invH) - eqGridH - 40; // bottom margin
+        l.previewH = Math.max(140, previewBottomBudget - eqYTop);
+
+        l.eqX = l.rightX + (l.rightW - (eqCols * l.eqSlotSize + (eqCols - 1) * l.eqPadding)) / 2;
+        l.eqY = l.previewY + l.previewH + 12;
+
+        return l;
+    }
+
     private void drawEquip(Graphics2D g2, ItemStack stack, int x, int y, int size, boolean isCircle) {
         if (stack == null || stack.tile == Tile.AIR) return;
         g2.setColor(stack.tile.color.brighter());
@@ -624,87 +700,75 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     }
 
     private void drawExpandedInventory(Graphics2D g2) {
-        int w = 800, h = 600;
-        int invW = 740, invH = 480;
-        int invX = (w - invW) / 2;
-        int invY = (h - invH) / 2;
+        InventoryLayout l = computeInventoryLayout();
         
         // Background
         g2.setColor(new Color(30, 30, 30, 248));
-        g2.fillRoundRect(invX, invY, invW, invH, 20, 20);
+        g2.fillRoundRect(l.invX, l.invY, l.invW, l.invH, 20, 20);
         g2.setColor(new Color(150, 150, 200, 150));
         g2.setStroke(new BasicStroke(3f));
-        g2.drawRoundRect(invX, invY, invW, invH, 20, 20);
+        g2.drawRoundRect(l.invX, l.invY, l.invW, l.invH, 20, 20);
         
-        int slotSize = 40;
-        int padding = 6;
         Inventory inv = player.getInventory();
         
-        // --- Left Section: Main Slots (4x10) ---
-        int gridX = invX + 30;
-        int gridY = invY + 80;
+        // --- Left Section: Main Slots ---
+        int gridX = l.gridX;
+        int gridY = l.gridY;
         g2.setColor(Color.WHITE);
         g2.setFont(new Font("Arial", Font.BOLD, 18));
-        g2.drawString("ENVANTER", gridX, gridY - 20);
+        g2.drawString("ENVANTER", gridX, l.invY + 60);
         
         for (int i = 0; i < 40; i++) {
-            int row = i / 10;
-            int col = i % 10;
-            int sx = gridX + col * (slotSize + padding);
-            int sy = gridY + row * (slotSize + padding);
+            int row = i / l.gridCols;
+            int col = i % l.gridCols;
+            int sx = gridX + col * (l.slotSize + l.slotPadding);
+            int sy = gridY + row * (l.slotSize + l.slotPadding);
             
             ItemStack stack = inv.getSlots()[i];
             
             g2.setColor(new Color(40, 40, 45, 230));
-            g2.fillRoundRect(sx, sy, slotSize, slotSize, 8, 8);
+            g2.fillRoundRect(sx, sy, l.slotSize, l.slotSize, 10, 10);
             g2.setColor(new Color(255, 255, 255, 20));
             g2.setStroke(new BasicStroke(1.2f));
-            g2.drawRoundRect(sx, sy, slotSize, slotSize, 8, 8);
+            g2.drawRoundRect(sx, sy, l.slotSize, l.slotSize, 10, 10);
             
             if (stack != null && stack.tile != Tile.AIR) {
                 g2.setColor(stack.isBackground ? stack.tile.color.darker() : stack.tile.color);
-                g2.fillRoundRect(sx + 5, sy + 5, slotSize - 10, slotSize - 10, 5, 5);
+                g2.fillRoundRect(sx + 6, sy + 6, l.slotSize - 12, l.slotSize - 12, 6, 6);
                 g2.setColor(Color.WHITE);
                 g2.setFont(new Font("Arial", Font.BOLD, 11));
-                g2.drawString(String.valueOf(stack.amount), sx + 4, sy + 13);
+                g2.drawString(String.valueOf(stack.amount), sx + 5, sy + 14);
             }
         }
         
         // --- Right Section: Character Preview Box ---
-        int previewX = invX + 530;
-        int previewY = invY + 80;
-        int previewW = 140;
-        int previewH = 260;
-        
+        int previewX = l.previewX;
+        int previewY = l.previewY;
+        int previewW = l.previewW;
+        int previewH = l.previewH;
+
         g2.setColor(new Color(45, 45, 45));
         g2.fillRoundRect(previewX, previewY, previewW, previewH, 15, 15);
         g2.setColor(new Color(80, 80, 100));
         g2.drawRoundRect(previewX, previewY, previewW, previewH, 15, 15);
         
         // Draw Large Stickman in Preview
-        drawStickmanPreview(g2, previewX + previewW / 2, previewY + 120);
+        drawStickmanPreview(g2, previewX + previewW / 2, previewY + previewH / 2 - 10);
         
-        // --- Equipment Slots ---
-        int slotW = 44;
-        int[][] eqCoords = {
-            {previewX + previewW/2 - slotW/2, previewY - 55}, // HAT
-            {previewX - 55, previewY + 10},                   // MASK
-            {previewX - 55, previewY + 70},                   // SHIRT
-            {previewX - 55, previewY + 130},                  // PANTS
-            {previewX + previewW/2 - slotW/2, previewY + previewH + 10}, // SHOE
-            {previewX + previewW + 10, previewY + 70}         // BACK
-        };
+        // --- Equipment Slots (2 columns x 3 rows) ---
         String[] eqLabels = {"BAŞLIK", "MASKE", "GÖVDE", "BACAK", "AYAK", "SIRT"};
         
         for (int i = 0; i < 6; i++) {
-            int sx = eqCoords[i][0];
-            int sy = eqCoords[i][1];
+            int row = i / 2;
+            int col = i % 2;
+            int sx = l.eqX + col * (l.eqSlotSize + l.eqPadding);
+            int sy = l.eqY + row * (l.eqSlotSize + l.eqPadding);
             ItemStack stack = inv.getEquipment()[i];
             
             g2.setColor(new Color(60, 60, 70, 220));
-            g2.fillRoundRect(sx, sy, slotSize, slotSize, 12, 12);
+            g2.fillRoundRect(sx, sy, l.eqSlotSize, l.eqSlotSize, 12, 12);
             g2.setColor(new Color(180, 180, 220, 120));
-            g2.drawRoundRect(sx, sy, slotSize, slotSize, 12, 12);
+            g2.drawRoundRect(sx, sy, l.eqSlotSize, l.eqSlotSize, 12, 12);
             
             g2.setColor(new Color(200, 200, 200, 150));
             g2.setFont(new Font("Arial", Font.PLAIN, 10));
@@ -712,7 +776,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             
             if (stack != null && stack.tile != Tile.AIR) {
                 g2.setColor(stack.tile.color);
-                g2.fillRoundRect(sx + 10, sy + 10, slotSize - 20, slotSize - 20, 6, 6);
+                g2.fillRoundRect(sx + 10, sy + 10, l.eqSlotSize - 20, l.eqSlotSize - 20, 6, 6);
             }
         }
     }
@@ -720,44 +784,27 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     // ──────────── INPUT ────────────
     private int getSlotAt(int mx, int my) {
         if (!inventoryOpen) return -1;
-        
-        int w = 800, h = 600;
-        int invW = 740, invH = 480;
-        int invX = (w - invW) / 2;
-        int invY = (h - invH) / 2;
-        int slotSize = 40, padding = 6;
-        
+
+        InventoryLayout l = computeInventoryLayout();
+
         // Main inventory slots
-        int gridX = invX + 30;
-        int gridY = invY + 80;
         for (int i = 0; i < 40; i++) {
-            int col = i % 10;
-            int row = i / 10;
-            int sx = gridX + col * (slotSize + padding);
-            int sy = gridY + row * (slotSize + padding);
-            if (mx >= sx && mx <= sx + slotSize && my >= sy && my <= sy + slotSize) return i;
+            int row = i / l.gridCols;
+            int col = i % l.gridCols;
+            int sx = l.gridX + col * (l.slotSize + l.slotPadding);
+            int sy = l.gridY + row * (l.slotSize + l.slotPadding);
+            if (mx >= sx && mx <= sx + l.slotSize && my >= sy && my <= sy + l.slotSize) return i;
         }
-        
-        // Character preview equipment slots
-        int previewX = invX + 530;
-        int previewY = invY + 80;
-        int previewW = 140;
-        int previewH = 260;
-        int slotW = 44;
-        int[][] eqCoords = {
-            {previewX + previewW/2 - slotW/2, previewY - 55}, // HAT
-            {previewX - 55, previewY + 10},                   // MASK
-            {previewX - 55, previewY + 70},                   // SHIRT
-            {previewX - 55, previewY + 130},                  // PANTS
-            {previewX + previewW/2 - slotW/2, previewY + previewH + 10}, // SHOE
-            {previewX + previewW + 10, previewY + 70}         // BACK
-        };
+
+        // Equipment slots (2 columns x 3 rows)
         for (int i = 0; i < 6; i++) {
-            int sx = eqCoords[i][0];
-            int sy = eqCoords[i][1];
-            if (mx >= sx && mx <= sx + slotW && my >= sy && my <= sy + slotW) return 100 + i;
+            int row = i / 2;
+            int col = i % 2;
+            int sx = l.eqX + col * (l.eqSlotSize + l.eqPadding);
+            int sy = l.eqY + row * (l.eqSlotSize + l.eqPadding);
+            if (mx >= sx && mx <= sx + l.eqSlotSize && my >= sy && my <= sy + l.eqSlotSize) return 100 + i;
         }
-        
+
         return -1;
     }
 
