@@ -12,6 +12,7 @@ import com.zomtopia.game.inventory.ItemStack;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import com.zomtopia.utils.SaveManager;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -31,6 +32,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     // Items and Inventory UI
     private final List<ItemEntity> droppedItems = new CopyOnWriteArrayList<>();
     private boolean inventoryOpen = false;
+    private boolean escapeMenuOpen = false;
     private int draggedSourceIdx = -1;
     private ItemStack draggedStack = null;
 
@@ -80,18 +82,20 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
 
     private void startGameLoop() {
         gameTimer = new Timer(16, e -> {
-            player.update(world);
-            camera.follow(player.x + Player.W / 2.0, player.y + Player.H / 2.0);
-            updateItems();
-            handleBlockInteraction();
-            
-            // Continuous placement with cooldown
-            if (rightHeld && !inventoryOpen) {
-                long now = System.currentTimeMillis();
-                if (now - lastPlacementTime >= PLACEMENT_COOLDOWN) {
-                    if (isInRangePlace) {
-                        handleRightClickPlacement(targetTX, targetTY);
-                        lastPlacementTime = now;
+            if (!escapeMenuOpen) {
+                player.update(world);
+                camera.follow(player.x + Player.W / 2.0, player.y + Player.H / 2.0);
+                updateItems();
+                handleBlockInteraction();
+                
+                // Continuous placement with cooldown
+                if (rightHeld && !inventoryOpen) {
+                    long now = System.currentTimeMillis();
+                    if (now - lastPlacementTime >= PLACEMENT_COOLDOWN) {
+                        if (isInRangePlace) {
+                            handleRightClickPlacement(targetTX, targetTY);
+                            lastPlacementTime = now;
+                        }
                     }
                 }
             }
@@ -353,6 +357,49 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         if (inventoryOpen) {
             drawExpandedInventory(g2);
             drawDraggedItem(g2);
+        }
+        if (escapeMenuOpen) {
+            drawEscapeMenu(g2);
+        }
+    }
+
+    private void drawEscapeMenu(Graphics2D g2) {
+        int w = getWidth(), h = getHeight();
+        // Dim background
+        g2.setColor(new Color(0, 0, 0, 150));
+        g2.fillRect(0, 0, w, h);
+
+        int menuW = 260, menuH = 320;
+        int menuX = (w - menuW) / 2;
+        int menuY = (h - menuH) / 2;
+
+        g2.setColor(new Color(30, 30, 35, 240));
+        g2.fillRoundRect(menuX, menuY, menuW, menuH, 20, 20);
+        g2.setColor(new Color(150, 150, 200, 100));
+        g2.setStroke(new BasicStroke(3f));
+        g2.drawRoundRect(menuX, menuY, menuW, menuH, 20, 20);
+
+        g2.setColor(Color.WHITE);
+        g2.setFont(new Font("Arial", Font.BOLD, 24));
+        String title = "MENÜ";
+        g2.drawString(title, menuX + (menuW - g2.getFontMetrics().stringWidth(title))/2, menuY + 45);
+
+        String[] buttons = {"DEVAM ET", "KAYDET", "YÜKLE", "KAYDET VE ÇIK"};
+        for (int i = 0; i < buttons.length; i++) {
+            int bx = menuX + 30;
+            int by = menuY + 70 + i * 60;
+            int bw = menuW - 60;
+            int bh = 45;
+
+            g2.setColor(new Color(50, 50, 65));
+            g2.fillRoundRect(bx, by, bw, bh, 10, 10);
+            g2.setColor(new Color(255, 255, 255, 30));
+            g2.drawRoundRect(bx, by, bw, bh, 10, 10);
+
+            g2.setColor(Color.WHITE);
+            g2.setFont(new Font("Arial", Font.BOLD, 14));
+            int tw = g2.getFontMetrics().stringWidth(buttons[i]);
+            g2.drawString(buttons[i], bx + (bw - tw)/2, by + 28);
         }
     }
 
@@ -670,6 +717,33 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     }
 
     @Override public void mousePressed(MouseEvent e) {
+        if (escapeMenuOpen) {
+            int mx = e.getX(), my = e.getY();
+            int w = 800, h = 600;
+            int menuW = 260, menuH = 320;
+            int menuX = (w - menuW) / 2;
+            int menuY = (h - menuH) / 2;
+
+            for (int i = 0; i < 4; i++) {
+                int bx = menuX + 30;
+                int by = menuY + 70 + i * 60;
+                int bw = menuW - 60;
+                int bh = 45;
+                if (mx >= bx && mx <= bx + bw && my >= by && my <= by + bh) {
+                    if (i == 0) escapeMenuOpen = false;
+                    if (i == 1) SaveManager.saveGame(world, player);
+                    if (i == 2) SaveManager.loadGame(world, player);
+                    if (i == 3) {
+                        SaveManager.saveGame(world, player);
+                        System.exit(0);
+                    }
+                    repaint();
+                    return;
+                }
+            }
+            return;
+        }
+
         if (inventoryOpen) {
             int slot = getSlotAt(e.getX(), e.getY());
             if (slot != -1) {
@@ -788,6 +862,14 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     @Override public void mouseExited(MouseEvent e) {}
 
     @Override public void keyPressed(KeyEvent e) {
+        if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+            escapeMenuOpen = !escapeMenuOpen;
+            if (escapeMenuOpen) inventoryOpen = false;
+            repaint();
+            return;
+        }
+        if (escapeMenuOpen) return;
+
         player.handleKeyPress(e.getKeyCode());
         int k = e.getKeyCode() - KeyEvent.VK_1;
         if (k >= 0 && k < com.zomtopia.game.inventory.Inventory.SIZE) selectedSlot = k;
@@ -798,11 +880,6 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                 draggedSourceIdx = -1;
             }
             inventoryOpen = !inventoryOpen;
-        }
-        if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
-            gameTimer.stop();
-            JFrame f = (JFrame) SwingUtilities.getWindowAncestor(this);
-            if (f != null) f.dispose();
         }
     }
     @Override public void keyReleased(KeyEvent e) { player.handleKeyRelease(e.getKeyCode()); }
