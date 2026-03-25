@@ -70,6 +70,16 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
 
         addKeyListener(this);
         addMouseListener(this);
+        addFocusListener(new FocusAdapter() {
+            @Override public void focusGained(FocusEvent e) { /* reset keys if needed */ }
+            @Override public void focusLost(FocusEvent e) { 
+                leftHeld = false; rightHeld = false; 
+                if (player != null) {
+                    player.left = player.right = player.jump = player.sprinting = player.crouchInput = false;
+                }
+            }
+        });
+
         addMouseMotionListener(new MouseMotionAdapter() {
             @Override public void mouseMoved(MouseEvent e)   { mouseScreenX = e.getX(); mouseScreenY = e.getY(); }
             @Override public void mouseDragged(MouseEvent e) { mouseScreenX = e.getX(); mouseScreenY = e.getY(); }
@@ -122,6 +132,13 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
 
     /** Called every tick: handle held mouse buttons */
     private void handleBlockInteraction() {
+        // Direct polling for mouse position (more robust on Mac during key repeats)
+        Point p = getMousePosition();
+        if (p != null) {
+            mouseScreenX = p.x;
+            mouseScreenY = p.y;
+        }
+
         targetTX = camera.toTileX(mouseScreenX);
         targetTY = camera.toTileY(mouseScreenY);
 
@@ -821,8 +838,11 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         }
         
         // Strict button check to avoid Mac modifier interference
-        // ONLY release if it's explicitly the Right Button
-        if (e.getButton() == MouseEvent.BUTTON3 || SwingUtilities.isRightMouseButton(e)) {
+        // ONLY release if it's explicitly the Right Button (BUTTON3)
+        if (e.getButton() == MouseEvent.BUTTON3) {
+            rightHeld = false;
+        } else if (SwingUtilities.isRightMouseButton(e) && e.getButton() != 0) {
+            // Some Mac mice/trackpads use BUTTON1 + Meta, handle with care
             rightHeld = false;
         }
 
