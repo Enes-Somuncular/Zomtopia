@@ -222,12 +222,10 @@ public class Player {
             hearts = 8.5 + 0.5 * (dBlocks - 20);
         }
 
+        // Convert to half-hearts.
+        // Keep odd/even half-hearts so the HUD can display half-filled hearts.
         int damageHalfRaw = (int) Math.floor(hearts * 2.0 + 1e-6);
-
-        // "Tam kalp": only apply full-heart damage (even number of half-hearts).
-        // Rounds down to nearest even half-heart.
-        int damageHalfFullHearts = (damageHalfRaw / 2) * 2;
-        return damageHalfFullHearts;
+        return damageHalfRaw;
     }
 
     public void handleKeyPress(int key) {
