@@ -4,17 +4,25 @@ import com.zomtopia.game.world.Tile;
 
 public class Inventory {
     private final ItemStack[] slots;
+    private final ItemStack[] equipment;
     public static final int SIZE = 40;
 
     public Inventory() {
-        slots = new ItemStack[SIZE];
-        // Starting items for testing/demo (all FG)
-        addItem(Tile.DIRT, 20, false);
-        addItem(Tile.GRASS, 10, false);
-        addItem(Tile.ROCK, 5, false);
-        addItem(Tile.WOOD, 5, false);
-        addItem(Tile.LEAVES, 5, false);
+        this.slots = new ItemStack[40];
+        this.equipment = new ItemStack[6];
+        
+        // Demo items for testing
+        addItem(Tile.DIRT, 64, false);
+        addItem(Tile.RED_SHIRT, 1, false);
+        addItem(Tile.BLUE_HAT, 1, false);
+        addItem(Tile.WINGS, 1, false);
+        addItem(Tile.DARK_MASK, 1, false);
+        addItem(Tile.JEANS, 1, false);
+        addItem(Tile.SNEAKERS, 1, false);
     }
+
+    public ItemStack[] getSlots() { return slots; }
+    public ItemStack[] getEquipment() { return equipment; }
 
     public boolean addItem(Tile tile, int count, boolean isBackground) {
         if (tile == Tile.AIR || tile == Tile.BEDROCK) return false;

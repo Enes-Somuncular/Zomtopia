@@ -3,8 +3,11 @@ package com.zomtopia.game;
 import com.zomtopia.game.entity.ItemEntity;
 import com.zomtopia.game.entity.Player;
 import com.zomtopia.game.world.Tile;
+import com.zomtopia.game.world.Tile.Category;
 import com.zomtopia.game.world.World;
 import com.zomtopia.game.world.WorldGenerator;
+import com.zomtopia.game.inventory.Inventory;
+import com.zomtopia.game.inventory.ItemStack;
 
 import javax.swing.*;
 import java.awt.*;
@@ -254,61 +257,74 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         int h = player.crouching ? 30 : 60;
         boolean facingLeft = player.facingLeft;
         
+        Inventory inv = player.getInventory();
+        ItemStack[] equip = inv.getEquipment();
+        
         g2.setStroke(new BasicStroke(2.5f));
-        g2.setColor(Color.BLACK);
         
         int centerX = spx + w/2;
         int headSize = 16;
+        int spineBottomY = spy + h - 14;
+        int armY = spy + headSize + 6;
+
+        // Back items (Wings etc) - Behind spine but in front of back arm maybe? No, behind everything for wings.
+        drawEquip(g2, equip[5], centerX, armY, 0, false); // BACK
+
+        g2.setColor(Color.BLACK);
         
         // Head
         g2.drawOval(centerX - headSize/2, spy, headSize, headSize);
-        
+        // Hat
+        drawEquip(g2, equip[0], centerX, spy, headSize, true); // HAT
+        // Mask
+        drawEquip(g2, equip[1], centerX, spy, headSize, true); // MASK
+
         // Body (Spine)
-        int spineBottomY = spy + h - 14;
+        g2.setColor(Color.BLACK);
         g2.drawLine(centerX, spy + headSize, centerX, spineBottomY);
-        
+        // Shirt
+        drawEquip(g2, equip[2], centerX, spy + headSize, (spineBottomY - (spy + headSize)), false); // SHIRT
+
         // --- Arms & Held Item ---
         int armX = centerX;
-        int armY = spy + headSize + 6;
         float p = player.punchAnim;
         
-        // Back arm (static or opposite)
+        // Back arm
+        g2.setColor(Color.BLACK);
         g2.drawLine(armX, armY, armX + (facingLeft ? 8 : -8), armY + 10);
         
         // Front arm (animated & holding item)
-        // Swing logic: rotate arm forward
         double swingAngle = (p > 0) ? (facingLeft ? -1.0 : 1.0) * Math.sin(p * Math.PI) * 1.2 : 0;
         int handX = armX + (int)((facingLeft ? -12 : 12) * Math.cos(swingAngle) - 10 * Math.sin(swingAngle));
         int handY = armY + (int)((facingLeft ? -12 : 12) * Math.sin(swingAngle) + 10 * Math.cos(swingAngle));
         
+        g2.setColor(Color.BLACK);
         g2.drawLine(armX, armY, handX, handY);
         
         // Held Item
-        com.zomtopia.game.inventory.ItemStack held = player.getInventory().getStack(selectedSlot);
+        ItemStack held = inv.getStack(selectedSlot);
         if (held != null && held.tile != com.zomtopia.game.world.Tile.AIR) {
             int itemSize = 12;
             boolean isBg = held.isBackground;
             g2.setColor(isBg ? held.tile.color.darker() : held.tile.color);
             g2.fillRoundRect(handX - 6, handY - 6, itemSize, itemSize, 3, 3);
-            if (isBg) {
-                g2.setColor(new Color(255, 255, 255, 60));
-                g2.drawRoundRect(handX - 6, handY - 6, itemSize, itemSize, 3, 3);
-            }
         }
         
+        // Legs & Pants/Shoes
         g2.setColor(Color.BLACK);
-        g2.setStroke(new BasicStroke(2.5f));
-        
-        // Legs
         if (player.crouching) {
             g2.drawLine(centerX, spineBottomY, centerX - 8, spy + h); // Left
             g2.drawLine(centerX, spineBottomY, centerX + 8, spy + h); // Right
+            drawEquip(g2, equip[3], centerX, spineBottomY, 14, false); // PANTS
         } else {
             double walkCycle = (System.currentTimeMillis() % 400) / 400.0;
             int legOffset = (Math.abs(player.vx) > 0.5) ? (int)(Math.sin(walkCycle * Math.PI * 2) * 10) : 0;
             
             g2.drawLine(centerX, spineBottomY, centerX - 6 + legOffset, spy + h); // Left
             g2.drawLine(centerX, spineBottomY, centerX + 6 - legOffset, spy + h); // Right
+            drawEquip(g2, equip[3], centerX, spineBottomY, 14, false); // PANTS
+            drawEquip(g2, equip[4], centerX - 6 + legOffset, spy + h, 0, false); // SHOES L
+            drawEquip(g2, equip[4], centerX + 6 - legOffset, spy + h, 0, false); // SHOES R
         }
         
         g2.setStroke(new BasicStroke(1f));
@@ -344,58 +360,6 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             g2.fillRoundRect(sx + offset, sy + offset, renderSize, renderSize, 4, 4);
             g2.setColor(bg ? item.tile.color.darker() : item.tile.color);
             g2.fillRoundRect(sx + offset + 2, sy + offset + 2, renderSize - 4, renderSize - 4, 2, 2);
-        }
-    }
-
-    private void drawExpandedInventory(Graphics2D g2) {
-        int slotSize = 44;
-        int padding  = 6;
-        int cols     = 10;
-        int rows     = 3;
-        int totalW   = cols * (slotSize + padding) - padding;
-        int totalH   = rows * (slotSize + padding) - padding;
-        int x0       = (getWidth() - totalW) / 2;
-        int y0       = (getHeight() - totalH) / 2 - 50;
-
-        // Dim background
-        g2.setColor(new Color(0, 0, 0, 180));
-        g2.fillRect(0, 0, getWidth(), getHeight());
-        
-        g2.setColor(Color.WHITE);
-        g2.setFont(new Font("Arial", Font.BOLD, 22));
-        g2.drawString("ENVANTER", x0, y0 - 20);
-
-        for (int r = 0; r < rows; r++) {
-            for (int c = 0; c < cols; c++) {
-                int slotIdx = 10 + (r * cols + c); // Starts after hotbar (0-9)
-                int sx = x0 + c * (slotSize + padding);
-                int sy = y0 + r * (slotSize + padding);
-                
-                com.zomtopia.game.inventory.ItemStack stack = player.getInventory().getStack(slotIdx);
-                
-                g2.setColor(new Color(40, 40, 40, 220));
-                g2.fillRoundRect(sx, sy, slotSize, slotSize, 8, 8);
-                g2.setColor(Color.GRAY);
-                g2.drawRoundRect(sx, sy, slotSize, slotSize, 8, 8);
-                
-                if (stack != null && stack.tile != Tile.AIR) {
-                    boolean isBg = stack.isBackground;
-                    int iconSize = isBg ? slotSize - 22 : slotSize - 16;
-                    int iconOff  = isBg ? 11 : 8;
-
-                    g2.setColor(isBg ? stack.tile.color.darker() : stack.tile.color);
-                    g2.fillRoundRect(sx + iconOff, sy + iconOff, iconSize, iconSize, 4, 4);
-                    
-                    if (isBg) {
-                        g2.setColor(new Color(255, 255, 255, 40));
-                        g2.drawRoundRect(sx + iconOff, sy + iconOff, iconSize, iconSize, 4, 4);
-                    }
-
-                    g2.setColor(Color.WHITE);
-                    g2.setFont(new Font("Arial", Font.BOLD, 11));
-                    g2.drawString(String.valueOf(stack.amount), sx + 4, sy + 14);
-                }
-            }
         }
     }
 
@@ -488,40 +452,136 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         g2.drawString("Scroll / 1-5: Blok Seç", 16, 98);
     }
 
-    // ──────────── INPUT ────────────
-    private int getSlotAt(int mx, int my) {
+    private void drawEquip(Graphics2D g2, ItemStack stack, int x, int y, int size, boolean isCircle) {
+        if (stack == null || stack.tile == Tile.AIR) return;
+        g2.setColor(stack.tile.color.brighter());
+        if (isCircle) {
+            g2.fillOval(x - size/2 - 2, y - 2, size + 4, size + 4);
+        } else {
+            if (stack.tile.category == Tile.Category.SHIRT) {
+                g2.setStroke(new BasicStroke(4.5f));
+                g2.drawLine(x, y, x, y + size);
+                g2.setStroke(new BasicStroke(2.5f));
+            } else if (stack.tile.category == Tile.Category.BACK) {
+                g2.fillOval(x - 22, y - 5, 18, 25);
+                g2.fillOval(x + 4, y - 5, 18, 25);
+            } else if (stack.tile.category == Tile.Category.PANTS) {
+                g2.setStroke(new BasicStroke(4.5f));
+                g2.drawLine(x, y, x - 5, y + size);
+                g2.drawLine(x, y, x + 5, y + size);
+                g2.setStroke(new BasicStroke(2.5f));
+            } else if (stack.tile.category == Tile.Category.SHOES) {
+                g2.fillRoundRect(x - 5, y - 2, 10, 5, 2, 2);
+            }
+        }
+    }
+
+    private void drawExpandedInventory(Graphics2D g2) {
+        int w = 800, h = 600;
+        int invW = 540, invH = 380;
+        int invX = (w - invW) / 2;
+        int invY = (h - invH) / 2;
+        
+        g2.setColor(new Color(40, 40, 40, 245));
+        g2.fillRoundRect(invX, invY, invW, invH, 15, 15);
+        g2.setColor(new Color(150, 150, 150));
+        g2.setStroke(new BasicStroke(2f));
+        g2.drawRoundRect(invX, invY, invW, invH, 15, 15);
+        g2.setStroke(new BasicStroke(1f));
+
         int slotSize = 44;
-        int padding = 6;
+        int padding = 10;
+        Inventory inv = player.getInventory();
         
-        // Check hotbar
-        int hotbarSize = 10;
-        int totalW_h = hotbarSize * (slotSize + padding) - padding;
-        int sx0_h = (getWidth() - totalW_h) / 2;
-        int y_h = getHeight() - slotSize - 16;
-        
-        if (my >= y_h && my <= y_h + slotSize) {
-            for (int i = 0; i < hotbarSize; i++) {
-                int sx = sx0_h + i * (slotSize + padding);
-                if (mx >= sx && mx <= sx + slotSize) return i;
+        for (int i = 0; i < 40; i++) {
+            int row = i / 10;
+            int col = i % 10;
+            int sx = invX + padding + col * (slotSize + padding);
+            int sy = invY + padding + row * (slotSize + padding);
+            
+            ItemStack stack = inv.getSlots()[i];
+            
+            g2.setColor(new Color(60, 60, 60, 150));
+            g2.fillRoundRect(sx, sy, slotSize, slotSize, 8, 8);
+            g2.setColor(Color.DARK_GRAY);
+            g2.drawRoundRect(sx, sy, slotSize, slotSize, 8, 8);
+            
+            if (stack != null && stack.tile != Tile.AIR) {
+                boolean isBg = stack.isBackground;
+                int iconSize = isBg ? slotSize - 22 : slotSize - 16;
+                int iconOff  = isBg ? 11 : 8;
+
+                g2.setColor(isBg ? stack.tile.color.darker() : stack.tile.color);
+                g2.fillRoundRect(sx + iconOff, sy + iconOff, iconSize, iconSize, 4, 4);
+                
+                if (isBg) {
+                    g2.setColor(new Color(255, 255, 255, 40));
+                    g2.drawRoundRect(sx + iconOff, sy + iconOff, iconSize, iconSize, 4, 4);
+                }
+
+                g2.setColor(Color.WHITE);
+                g2.setFont(new Font("Arial", Font.BOLD, 11));
+                g2.drawString(String.valueOf(stack.amount), sx + 4, sy + 14);
+                
+                g2.setFont(new Font("Arial", Font.BOLD, 9));
+                String name = stack.tile.name().substring(0, Math.min(3, stack.tile.name().length()));
+                if (isBg) name += "B";
+                g2.drawString(name, sx + 4, sy + slotSize - 4);
             }
         }
         
-        // Check expanded inventory
-        if (inventoryOpen) {
-            int cols = 10;
-            int rows = 3;
-            int totalW_e = cols * (slotSize + padding) - padding;
-            int totalH_e = rows * (slotSize + padding) - padding;
-            int x0_e = (getWidth() - totalW_e) / 2;
-            int y0_e = (getHeight() - totalH_e) / 2 - 50;
+        // --- Equipment Slots ---
+        int eqX = invX + 460;
+        int eqY = invY + padding;
+        String[] labels = {"HAT", "MSK", "SHRT", "PANT", "SHOE", "BACK"};
+        
+        for (int i = 0; i < 6; i++) {
+            int sx = eqX;
+            int sy = eqY + i * 58; // Increased spacing for labels
+            ItemStack stack = inv.getEquipment()[i];
             
-            if (mx >= x0_e && mx <= x0_e + totalW_e && my >= y0_e && my <= y0_e + totalH_e) {
-                int col = (mx - x0_e) / (slotSize + padding);
-                int row = (my - y0_e) / (slotSize + padding);
-                if (col >= 0 && col < cols && row >= 0 && row < rows) {
-                    return 10 + (row * cols + col);
-                }
+            g2.setColor(new Color(200, 200, 200, 40));
+            g2.fillRoundRect(sx, sy, slotSize, slotSize, 8, 8);
+            g2.setColor(Color.LIGHT_GRAY);
+            g2.drawRoundRect(sx, sy, slotSize, slotSize, 8, 8);
+            
+            g2.setColor(Color.GRAY);
+            g2.setFont(new Font("Arial", Font.PLAIN, 10));
+            g2.drawString(labels[i], sx + 2, sy - 2);
+
+            if (stack != null && stack.tile != Tile.AIR) {
+                g2.setColor(stack.tile.color);
+                g2.fillRoundRect(sx + 8, sy + 8, slotSize - 16, slotSize - 16, 4, 4);
             }
+        }
+    }
+
+    // ──────────── INPUT ────────────
+    private int getSlotAt(int mx, int my) {
+        if (!inventoryOpen) return -1;
+        
+        int w = 800, h = 600;
+        int invW = 540, invH = 380;
+        int invX = (w - invW) / 2;
+        int invY = (h - invH) / 2;
+        int slotSize = 44, padding = 10;
+        
+        // Check main inventory slots
+        for (int i = 0; i < 40; i++) {
+            int row = i / 10;
+            int col = i % 10;
+            int sx = invX + padding + col * (slotSize + padding);
+            int sy = invY + padding + row * (slotSize + padding);
+            if (mx >= sx && mx <= sx + slotSize && my >= sy && my <= sy + slotSize) return i;
+        }
+        
+        // Check equipment slots
+        int eqX = invX + 460;
+        int eqY = invY + padding;
+        for (int i = 0; i < 6; i++) {
+            int sx = eqX;
+            int sy = eqY + i * 58;
+            if (mx >= sx && mx <= sx + slotSize && my >= sy && my <= sy + slotSize) return 100 + i;
         }
         
         return -1;
@@ -531,9 +591,16 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         if (inventoryOpen) {
             int slot = getSlotAt(e.getX(), e.getY());
             if (slot != -1) {
-                draggedStack = player.getInventory().getStack(slot);
+                Inventory inv = player.getInventory();
+                if (slot < 100) { // Standard inventory slot
+                    draggedStack = inv.getSlots()[slot];
+                    inv.getSlots()[slot] = null;
+                } else { // Equipment slot
+                    int eqIdx = slot - 100;
+                    draggedStack = inv.getEquipment()[eqIdx];
+                    inv.getEquipment()[eqIdx] = null;
+                }
                 draggedSourceIdx = slot;
-                player.getInventory().setStack(slot, null);
                 return;
             }
         }
@@ -583,18 +650,43 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     }
     @Override public void mouseReleased(MouseEvent e) {
         if (draggedStack != null) {
-            int targetSlot = getSlotAt(e.getX(), e.getY());
-            if (targetSlot != -1) {
-                // Swap
-                com.zomtopia.game.inventory.ItemStack targetStack = player.getInventory().getStack(targetSlot);
-                player.getInventory().setStack(targetSlot, draggedStack);
-                player.getInventory().setStack(draggedSourceIdx, targetStack);
-            } else if (inventoryOpen) {
-                // Drop if inventory open and released in "void"
-                droppedItems.add(new ItemEntity(player.x + Player.W/2, player.y + Player.H/2, draggedStack.tile, draggedStack.isBackground));
+            int targetIndex = getSlotAt(e.getX(), e.getY());
+            Inventory inv = player.getInventory();
+            
+            if (targetIndex >= 0) {
+                if (targetIndex < 100) {
+                    // Standard slot
+                    ItemStack temp = inv.getSlots()[targetIndex];
+                    inv.getSlots()[targetIndex] = draggedStack;
+                    if (draggedSourceIdx < 100) { // Was from standard slot
+                        inv.getSlots()[draggedSourceIdx] = temp;
+                    } else { // Was from equipment slot
+                        inv.getEquipment()[draggedSourceIdx - 100] = temp;
+                    }
+                } else {
+                    // Equipment slot
+                    int eqIdx = targetIndex - 100;
+                    Tile.Category[] cats = {Tile.Category.HAT, Tile.Category.MASK, Tile.Category.SHIRT, Tile.Category.PANTS, Tile.Category.SHOES, Tile.Category.BACK};
+                    if (draggedStack.tile.category == cats[eqIdx]) {
+                        ItemStack temp = inv.getEquipment()[eqIdx];
+                        inv.getEquipment()[eqIdx] = draggedStack;
+                        if (draggedSourceIdx < 100) { // Was from standard slot
+                            inv.getSlots()[draggedSourceIdx] = temp;
+                        } else { // Was from equipment slot
+                            inv.getEquipment()[draggedSourceIdx - 100] = temp;
+                        }
+                    } else {
+                        // Return to source if not compatible
+                        if (draggedSourceIdx < 100) {
+                            inv.getSlots()[draggedSourceIdx] = draggedStack;
+                        } else {
+                            inv.getEquipment()[draggedSourceIdx - 100] = draggedStack;
+                        }
+                    }
+                }
             } else {
-                // Return to source (emergency)
-                player.getInventory().setStack(draggedSourceIdx, draggedStack);
+                // Drop item
+                droppedItems.add(new ItemEntity(player.x, player.y, draggedStack.tile, draggedStack.isBackground));
             }
             draggedStack = null;
             draggedSourceIdx = -1;
