@@ -158,7 +158,9 @@ public class Player {
         // Apply fall damage on landing.
         if (trackingFall && !wasOnGround && onGround) {
             // Measure fall distance using player center-to-center.
-            double fallDist = fallStartCenterY - (y + H / 2.0);
+            // y coordinate increases downward, so falling makes (y + H/2) larger.
+            // We want a positive "distance fallen" number.
+            double fallDist = (y + H / 2.0) - fallStartCenterY;
             if (fallDist > 0) {
                 int damageHalf = computeMappedFallDamageHalfHearts(fallDist);
                 if (damageHalf > 0) applyDamageHalf(damageHalf);
