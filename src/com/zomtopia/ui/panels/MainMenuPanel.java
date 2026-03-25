@@ -57,6 +57,10 @@ public class MainMenuPanel extends JPanel {
                 BorderFactory.createEmptyBorder(10, 40, 10, 40)));
         button.setOpaque(true);
         button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        Dimension size = new Dimension(220, 55);
+        button.setPreferredSize(size);
+        button.setMinimumSize(size);
+        button.setMaximumSize(size);
         return button;
     }
 
