@@ -96,7 +96,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                 item.vy += dy * 0.03;
             }
 
-            if (distSq < Math.pow(World.TILE_SIZE * 0.8, 2)) {
+            if (distSq < Math.pow(World.TILE_SIZE * 1.5, 2)) {
                 if (player.getInventory().addItem(item.tile, 1)) {
                     droppedItems.remove(item);
                 }
@@ -350,12 +350,13 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     private void drawHUD(Graphics2D g2) {
         int slotSize = 44;
         int padding  = 6;
-        int total    = com.zomtopia.game.inventory.Inventory.SIZE * (slotSize + padding) - padding;
-        int sx0      = (getWidth() - total) / 2;
+        int hotbarSize = 10;
+        int totalW   = hotbarSize * (slotSize + padding) - padding;
+        int sx0      = (getWidth() - totalW) / 2;
         int y        = getHeight() - slotSize - 16;
 
         // --- Status Bars (Health & Stamina) ---
-        int barWidth = total;
+        int barWidth = totalW;
         int barX = sx0;
         // Health: 10 hearts
         int heartSize = 16;
@@ -385,7 +386,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         g2.drawRoundRect(barX, sBarY, barWidth, sBarH, 4, 4);
 
         // --- Hotbar ---
-        for (int i = 0; i < com.zomtopia.game.inventory.Inventory.SIZE; i++) {
+        for (int i = 0; i < hotbarSize; i++) {
             int sx = sx0 + i * (slotSize + padding);
             boolean sel = (i == selectedSlot);
             com.zomtopia.game.inventory.ItemStack stack = player.getInventory().getStack(i);
