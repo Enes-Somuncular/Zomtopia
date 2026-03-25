@@ -4,6 +4,7 @@ import javax.swing.*;
 import java.awt.*;
 import com.zomtopia.main.GameApp;
 import com.zomtopia.utils.ResourceManager;
+import com.zomtopia.utils.SettingsManager;
 import com.zomtopia.audio.AudioManager;
 
 public class PlayMenuPanel extends JPanel {
@@ -32,7 +33,7 @@ public class PlayMenuPanel extends JPanel {
         JLabel nameLabel = new JLabel("İsim:");
         nameLabel.setFont(new Font("Arial", Font.BOLD, 24));
         nameLabel.setForeground(Color.WHITE);
-        JTextField nameField = new JTextField(15);
+        JTextField nameField = new JTextField(SettingsManager.getPlayerName(), 15);
         nameField.setFont(new Font("Arial", Font.PLAIN, 20));
         inputPanel.add(nameLabel);
         inputPanel.add(nameField);
@@ -56,6 +57,8 @@ public class PlayMenuPanel extends JPanel {
                 JOptionPane.showMessageDialog(this, "Lütfen bir isim giriniz!", "Hata", JOptionPane.WARNING_MESSAGE);
                 return;
             }
+            // Save the name persistently
+            SettingsManager.setPlayerName(name);
             // Launch the actual game world
             JFrame gameFrame = new JFrame("Zomtopia - " + name);
             com.zomtopia.game.GamePanel gp = new com.zomtopia.game.GamePanel();
