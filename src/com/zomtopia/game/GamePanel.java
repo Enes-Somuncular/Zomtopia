@@ -78,6 +78,18 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         int ty = camera.toTileY(mouseScreenY);
 
         if (leftHeld) {
+            // Distance check (3 blocks)
+            double px = player.x + Player.W / 2.0;
+            double py = player.y + Player.H / 2.0;
+            double txC = tx * World.TILE_SIZE + World.TILE_SIZE / 2.0;
+            double tyC = ty * World.TILE_SIZE + World.TILE_SIZE / 2.0;
+            double distBreak = Math.sqrt(Math.pow(px - txC, 2) + Math.pow(py - tyC, 2));
+
+            if (distBreak > 3.5 * World.TILE_SIZE) { // Allow up to 3 blocks + small buffer
+                resetBreak();
+                return;
+            }
+
             Tile fgTile = world.getFg(tx, ty);
             Tile bgTile = world.getBg(tx, ty);
 
@@ -112,15 +124,24 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         }
 
         if (rightHeld) {
-            Rectangle playerRect = new Rectangle((int) player.x, (int) player.y, Player.W, Player.H);
-            Rectangle tileRect   = new Rectangle(tx * World.TILE_SIZE, ty * World.TILE_SIZE,
-                                                  World.TILE_SIZE, World.TILE_SIZE);
-            if (!playerRect.intersects(tileRect)) {
-                if (world.getFg(tx, ty) == Tile.AIR) {
-                    // Place as foreground if adjacent to something solid or background exists
-                    world.setFg(tx, ty, hotbar[selectedSlot]);
-                } else if (world.getBg(tx, ty) == Tile.AIR) {
-                    world.setBg(tx, ty, hotbar[selectedSlot]);
+            // Distance check (4 blocks)
+            double px = player.x + Player.W / 2.0;
+            double py = player.y + Player.H / 2.0;
+            double txC = tx * World.TILE_SIZE + World.TILE_SIZE / 2.0;
+            double tyC = ty * World.TILE_SIZE + World.TILE_SIZE / 2.0;
+            double distPlace = Math.sqrt(Math.pow(px - txC, 2) + Math.pow(py - tyC, 2));
+
+            if (distPlace <= 4.5 * World.TILE_SIZE) { // Allow up to 4 blocks + buffer
+                Rectangle playerRect = new Rectangle((int) player.x, (int) player.y, Player.W, Player.H);
+                Rectangle tileRect   = new Rectangle(tx * World.TILE_SIZE, ty * World.TILE_SIZE,
+                                                      World.TILE_SIZE, World.TILE_SIZE);
+                if (!playerRect.intersects(tileRect)) {
+                    if (world.getFg(tx, ty) == Tile.AIR) {
+                        // Place as foreground if adjacent to something solid or background exists
+                        world.setFg(tx, ty, hotbar[selectedSlot]);
+                    } else if (world.getBg(tx, ty) == Tile.AIR) {
+                        world.setBg(tx, ty, hotbar[selectedSlot]);
+                    }
                 }
             }
         }
@@ -284,8 +305,8 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         g2.setFont(new Font("Arial", Font.BOLD, 12));
         g2.drawString("WASD / ← →   Hareket & Zıpla", 16, 26);
         g2.drawString("SHIFT: Koşma (Stamina)", 16, 44);
-        g2.drawString("Sol Tık (Basılı): Kır [ön → arka]", 16, 62);
-        g2.drawString("Sağ Tık: Blok Yerleştir", 16, 80);
+        g2.drawString("Sol Tık (Basılı): Kır (Menzil: 3)", 16, 62);
+        g2.drawString("Sağ Tık: Blok Yerleştir (Menzil: 4)", 16, 80);
         g2.drawString("Scroll / 1-5: Blok Seç", 16, 98);
     }
 

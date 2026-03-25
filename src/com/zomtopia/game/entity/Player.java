@@ -14,8 +14,8 @@ public class Player {
 
     private static final double GRAVITY    = 0.5;
     private static final double MAX_VY     = 14;
-    private static final double MOVE_SPEED = 3.0;
-    private static final double SPRINT_SPEED = 5.5;
+    private static final double MOVE_SPEED = 2.2;
+    private static final double SPRINT_SPEED = 3.8;
     private static final double JUMP_VY    = -11.0;
     private static final double FRICTION   = 0.75;
 
