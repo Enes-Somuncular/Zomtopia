@@ -180,14 +180,48 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     }
 
     private void updateItems() {
+        // 1) Update positions
         for (ItemEntity item : droppedItems) {
             item.update(world);
+        }
 
-            Rectangle itemRect   = new Rectangle((int) item.x, (int) item.y, ItemEntity.SIZE, ItemEntity.SIZE);
-            Rectangle playerRect = new Rectangle((int) player.x, (int) player.y, Player.W, Player.H);
+        // 2) Merge nearby items (same tile + same layer) into one stack.
+        // Since ItemEntity doesn't have automatic stacking, we merge if centers are close.
+        final double mergeRadius = ItemEntity.SIZE * 1.2;
+        java.util.List<ItemEntity> merged = new java.util.ArrayList<>();
+        for (ItemEntity item : droppedItems) {
+            boolean didMerge = false;
+            double itemCX = item.x + ItemEntity.SIZE / 2.0;
+            double itemCY = item.y + ItemEntity.SIZE / 2.0;
+
+            for (ItemEntity kept : merged) {
+                if (kept.tile == item.tile && kept.isBackground == item.isBackground) {
+                    double keptCX = kept.x + ItemEntity.SIZE / 2.0;
+                    double keptCY = kept.y + ItemEntity.SIZE / 2.0;
+                    double dx = keptCX - itemCX;
+                    double dy = keptCY - itemCY;
+                    if ((dx * dx + dy * dy) <= (mergeRadius * mergeRadius)) {
+                        kept.amount += item.amount;
+                        didMerge = true;
+                        break;
+                    }
+                }
+            }
+            if (!didMerge) {
+                merged.add(item);
+            }
+        }
+
+        droppedItems.clear();
+        droppedItems.addAll(merged);
+
+        // 3) Pick up by player (amount-aware)
+        for (ItemEntity item : new java.util.ArrayList<>(droppedItems)) {
+            Rectangle itemRect = new Rectangle((int) item.x, (int) item.y, ItemEntity.SIZE, ItemEntity.SIZE);
+            Rectangle playerRect = new Rectangle((int) player.x, (int) player.y, Player.W, player.crouching ? 30 : Player.H);
 
             if (itemRect.intersects(playerRect)) {
-                if (player.getInventory().addItem(item.tile, 1, item.isBackground)) {
+                if (player.getInventory().addItem(item.tile, item.amount, item.isBackground)) {
                     droppedItems.remove(item);
                 }
             }
@@ -591,7 +625,24 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             g2.fillRoundRect(sx + offset, sy + offset, renderSize, renderSize, 4, 4);
             g2.setColor(bg ? item.tile.color.darker() : item.tile.color);
             g2.fillRoundRect(sx + offset + 2, sy + offset + 2, renderSize - 4, renderSize - 4, 2, 2);
+
+            // Show amount for stack-like behavior
+            if (item.amount > 1) {
+                g2.setColor(Color.WHITE);
+                g2.setFont(new Font("Arial", Font.BOLD, 10));
+                g2.drawString(String.valueOf(item.amount), sx + offset + 2, sy + offset + renderSize - 3);
+            }
         }
+    }
+
+    private int getDropX() {
+        // Place just outside player rect, in the direction the player is facing.
+        return (int) (player.x + (player.facingLeft ? -ItemEntity.SIZE - 4 : Player.W + 4));
+    }
+
+    private int getDropY() {
+        int h = player.crouching ? 30 : Player.H;
+        return (int) (player.y + h / 2.0 - ItemEntity.SIZE / 2.0);
     }
 
     private void drawHUD(Graphics2D g2) {
@@ -1157,8 +1208,10 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                 Inventory inv = player.getInventory();
                 ItemStack stack = inv.getSlots()[hb];
                 if (stack != null && stack.tile != Tile.AIR) {
-                    draggedStack = stack;
-                    inv.getSlots()[hb] = null;
+                    // Drop 1 item from the stack (not the whole stack).
+                    draggedStack = new ItemStack(stack.tile, 1, stack.isBackground);
+                    stack.amount -= 1;
+                    if (stack.amount <= 0) inv.getSlots()[hb] = null;
                     draggedHotbarIdx = hb;
                     draggingFromHotbar = true;
                     // Do not start breaking/placing while dragging from hotbar.
@@ -1279,24 +1332,45 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                     if (draggedStack.tile.category != Tile.Category.BLOCK) {
                         returnDraggedStackToSource();
                     } else {
-                        droppedItems.add(new ItemEntity(player.x, player.y, draggedStack.tile, draggedStack.isBackground));
+                droppedItems.add(new ItemEntity(getDropX(), getDropY(), draggedStack.tile, draggedStack.isBackground, draggedStack.amount));
                     }
                 }
             } else if (draggingFromHotbar) {
                 // Hotbar drag released outside expanded inventory.
                 int hbTarget = getHotbarSlotAt(e.getX(), e.getY());
                 if (hbTarget != -1) {
-                    // Swap with target hotbar slot.
-                    ItemStack temp = inv.getSlots()[hbTarget];
-                    inv.getSlots()[hbTarget] = draggedStack;
-                    inv.getSlots()[draggedHotbarIdx] = temp;
+                    // Merge into compatible hotbar slot; otherwise keep stacks unchanged.
+                    ItemStack target = inv.getSlots()[hbTarget];
+                    if (target == null) {
+                        inv.getSlots()[hbTarget] = draggedStack;
+                    } else if (target.tile == draggedStack.tile && target.isBackground == draggedStack.isBackground) {
+                        target.amount += draggedStack.amount;
+                    } else {
+                        // Return the 1 item back to source stack.
+                        ItemStack source = inv.getSlots()[draggedHotbarIdx];
+                        if (source == null) {
+                            inv.getSlots()[draggedHotbarIdx] = draggedStack;
+                        } else {
+                            source.amount += draggedStack.amount;
+                        }
+                    }
                 } else {
                     // Drop to world.
-                    droppedItems.add(new ItemEntity(player.x, player.y, draggedStack.tile, draggedStack.isBackground));
+                    if (draggedStack.tile.category != Tile.Category.BLOCK) {
+                        // Equippables cannot be dropped.
+                        ItemStack source = inv.getSlots()[draggedHotbarIdx];
+                        if (source == null) {
+                            inv.getSlots()[draggedHotbarIdx] = draggedStack;
+                        } else {
+                            source.amount += draggedStack.amount;
+                        }
+                    } else {
+                        droppedItems.add(new ItemEntity(getDropX(), getDropY(), draggedStack.tile, draggedStack.isBackground, draggedStack.amount));
+                    }
                 }
             } else {
                 // Fallback: drop to world (shouldn't happen often).
-                droppedItems.add(new ItemEntity(player.x, player.y, draggedStack.tile, draggedStack.isBackground));
+                droppedItems.add(new ItemEntity(getDropX(), getDropY(), draggedStack.tile, draggedStack.isBackground, draggedStack.amount));
             }
 
             draggedStack = null;
