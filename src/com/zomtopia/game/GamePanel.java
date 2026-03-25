@@ -102,6 +102,8 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         int ty = camera.toTileY(mouseScreenY);
 
         if (leftHeld) {
+            // Animasyon tetikle
+            player.startPunch();
             // Distance check (3 blocks)
             double px = player.x + Player.W / 2.0;
             double py = player.y + Player.H / 2.0;
@@ -250,9 +252,10 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         int spy = camera.toScreenY((int) player.y);
         int w = Player.W;
         int h = player.crouching ? 30 : 60;
+        boolean facingLeft = player.facingLeft;
         
         g2.setStroke(new BasicStroke(2.5f));
-        g2.setColor(Color.BLACK); // Outline / Stick
+        g2.setColor(Color.BLACK);
         
         int centerX = spx + w/2;
         int headSize = 16;
@@ -264,15 +267,37 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         int spineBottomY = spy + h - 14;
         g2.drawLine(centerX, spy + headSize, centerX, spineBottomY);
         
-        // Arms
+        // --- Arms & Held Item ---
+        int armX = centerX;
         int armY = spy + headSize + 6;
-        if (player.crouching) {
-            g2.drawLine(centerX, armY, centerX - 10, armY + 6); // Left
-            g2.drawLine(centerX, armY, centerX + 10, armY + 6); // Right
-        } else {
-            g2.drawLine(centerX, armY, centerX - 12, armY + 10);
-            g2.drawLine(centerX, armY, centerX + 12, armY + 10);
+        float p = player.punchAnim;
+        
+        // Back arm (static or opposite)
+        g2.drawLine(armX, armY, armX + (facingLeft ? 8 : -8), armY + 10);
+        
+        // Front arm (animated & holding item)
+        // Swing logic: rotate arm forward
+        double swingAngle = (p > 0) ? (facingLeft ? -1.0 : 1.0) * Math.sin(p * Math.PI) * 1.2 : 0;
+        int handX = armX + (int)((facingLeft ? -12 : 12) * Math.cos(swingAngle) - 10 * Math.sin(swingAngle));
+        int handY = armY + (int)((facingLeft ? -12 : 12) * Math.sin(swingAngle) + 10 * Math.cos(swingAngle));
+        
+        g2.drawLine(armX, armY, handX, handY);
+        
+        // Held Item
+        com.zomtopia.game.inventory.ItemStack held = player.getInventory().getStack(selectedSlot);
+        if (held != null && held.tile != com.zomtopia.game.world.Tile.AIR) {
+            int itemSize = 12;
+            boolean isBg = held.isBackground;
+            g2.setColor(isBg ? held.tile.color.darker() : held.tile.color);
+            g2.fillRoundRect(handX - 6, handY - 6, itemSize, itemSize, 3, 3);
+            if (isBg) {
+                g2.setColor(new Color(255, 255, 255, 60));
+                g2.drawRoundRect(handX - 6, handY - 6, itemSize, itemSize, 3, 3);
+            }
         }
+        
+        g2.setColor(Color.BLACK);
+        g2.setStroke(new BasicStroke(2.5f));
         
         // Legs
         if (player.crouching) {
@@ -531,6 +556,9 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         if (distPlace <= 4.5 * World.TILE_SIZE) { 
             com.zomtopia.game.inventory.ItemStack selStack = player.getInventory().getStack(selectedSlot);
             if (selStack != null && selStack.amount > 0) {
+                // Animasyon tetikle
+                player.startPunch();
+
                 Rectangle playerRect = new Rectangle((int) player.x, (int) player.y, Player.W, Player.H);
                 Rectangle tileRect   = new Rectangle(tx * World.TILE_SIZE, ty * World.TILE_SIZE,
                                                       World.TILE_SIZE, World.TILE_SIZE);

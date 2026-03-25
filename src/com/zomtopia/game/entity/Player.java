@@ -38,10 +38,26 @@ public class Player {
     // Input flags (set by GamePanel)
     public boolean left, right, jump, sprinting, crouchInput;
     public boolean crouching;
+    public boolean facingLeft = false;
+    public float punchAnim = 0f; // 0.0 to 1.0
+
+    public void startPunch() {
+        if (punchAnim <= 0) punchAnim = 0.01f;
+    }
 
     public void update(World world) {
         // Horizontal
         double currentSpeed = MOVE_SPEED;
+        
+        // Update orientation
+        if (left) facingLeft = true;
+        if (right) facingLeft = false;
+        
+        // --- Animation Progress ---
+        if (punchAnim > 0) {
+            punchAnim += 0.15f; 
+            if (punchAnim >= 1.0f) punchAnim = 0;
+        }
         boolean isMoving = left || right;
 
         if (sprinting && isMoving && stamina > 0) {
