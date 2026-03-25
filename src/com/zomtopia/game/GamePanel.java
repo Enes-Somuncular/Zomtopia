@@ -1266,16 +1266,6 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         }
     }
 
-    private void returnDraggedStackToSource() {
-        if (draggedStack == null || draggedSourceIdx < 0) return;
-        Inventory inv = player.getInventory();
-        if (draggedSourceIdx < 100) {
-            inv.getSlots()[draggedSourceIdx] = draggedStack;
-        } else {
-            inv.getEquipment()[draggedSourceIdx - 100] = draggedStack;
-        }
-    }
-
     @Override public void mouseReleased(MouseEvent e) {
         if (SwingUtilities.isLeftMouseButton(e)) {
             leftHeld = false;
@@ -1329,10 +1319,8 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                     }
                 } else {
                     // Drop item (outside expanded inventory area)
-                    if (draggedStack.tile.category != Tile.Category.BLOCK) {
-                        returnDraggedStackToSource();
-                    } else {
-                droppedItems.add(new ItemEntity(getDropX(), getDropY(), draggedStack.tile, draggedStack.isBackground, draggedStack.amount));
+                    if (draggedStack.tile != Tile.AIR && draggedStack.tile != Tile.BEDROCK) {
+                        droppedItems.add(new ItemEntity(getDropX(), getDropY(), draggedStack.tile, draggedStack.isBackground, draggedStack.amount));
                     }
                 }
             } else if (draggingFromHotbar) {
@@ -1356,21 +1344,15 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                     }
                 } else {
                     // Drop to world.
-                    if (draggedStack.tile.category != Tile.Category.BLOCK) {
-                        // Equippables cannot be dropped.
-                        ItemStack source = inv.getSlots()[draggedHotbarIdx];
-                        if (source == null) {
-                            inv.getSlots()[draggedHotbarIdx] = draggedStack;
-                        } else {
-                            source.amount += draggedStack.amount;
-                        }
-                    } else {
+                    if (draggedStack.tile != Tile.AIR && draggedStack.tile != Tile.BEDROCK) {
                         droppedItems.add(new ItemEntity(getDropX(), getDropY(), draggedStack.tile, draggedStack.isBackground, draggedStack.amount));
                     }
                 }
             } else {
                 // Fallback: drop to world (shouldn't happen often).
-                droppedItems.add(new ItemEntity(getDropX(), getDropY(), draggedStack.tile, draggedStack.isBackground, draggedStack.amount));
+                if (draggedStack.tile != Tile.AIR && draggedStack.tile != Tile.BEDROCK) {
+                    droppedItems.add(new ItemEntity(getDropX(), getDropY(), draggedStack.tile, draggedStack.isBackground, draggedStack.amount));
+                }
             }
 
             draggedStack = null;
