@@ -16,30 +16,31 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     private final Camera camera;
     private Timer gameTimer;
 
-    // Toolbar – which tile the player is holding
+    // Hotbar
     private final Tile[] hotbar = {Tile.DIRT, Tile.GRASS, Tile.ROCK, Tile.WOOD, Tile.LEAVES};
     private int selectedSlot = 0;
 
-    // Block break helper
+    // Block breaking state
     private int breakX = -1, breakY = -1;
-    private int breakTick = 0;
-    private static final int BREAK_TICKS = 12;
+    private float breakProgress = 0;        // 0.0 – 1.0
+    private static final float BREAK_SPEED = 0.065f;  // per tick
 
-    // Mouse screen position
+    // Mouse state
     private int mouseScreenX, mouseScreenY;
+    private boolean leftHeld, rightHeld;
 
     public GamePanel() {
         setPreferredSize(new Dimension(800, 600));
-        setBackground(new Color(100, 180, 240)); // sky color
 
         world = new World();
         new WorldGenerator(System.currentTimeMillis()).generate(world);
 
         player = new Player();
-        // Spawn player above the ground around the middle
-        player.x = (World.WIDTH / 2) * World.TILE_SIZE;
+        // Spawn above surface at world middle
+        int mx = World.WIDTH / 2;
+        player.x = mx * World.TILE_SIZE;
         for (int y = 0; y < World.HEIGHT; y++) {
-            if (world.getTile(World.WIDTH / 2, y) != Tile.AIR) {
+            if (world.getFg(mx, y) != Tile.AIR) {
                 player.y = (y - 2) * World.TILE_SIZE;
                 break;
             }
@@ -56,15 +57,14 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         });
         addMouseWheelListener(e -> {
             selectedSlot = (selectedSlot + (e.getWheelRotation() > 0 ? 1 : -1) + hotbar.length) % hotbar.length;
-            repaint();
         });
         setFocusable(true);
-
         startGameLoop();
     }
 
     private void startGameLoop() {
         gameTimer = new Timer(16, e -> {
+            handleBlockInteraction();
             player.update(world);
             camera.follow(player.x + Player.W / 2.0, player.y + Player.H / 2.0);
             repaint();
@@ -72,80 +72,150 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         gameTimer.start();
     }
 
+    /** Called every tick: handle held mouse buttons */
+    private void handleBlockInteraction() {
+        int tx = camera.toTileX(mouseScreenX);
+        int ty = camera.toTileY(mouseScreenY);
+
+        if (leftHeld) {
+            Tile fgTile = world.getFg(tx, ty);
+            Tile bgTile = world.getBg(tx, ty);
+
+            boolean hasFg = fgTile != Tile.AIR && fgTile != Tile.BEDROCK;
+            boolean hasBg = bgTile != Tile.AIR && bgTile != Tile.BEDROCK;
+
+            if (!hasFg && !hasBg) {
+                resetBreak();
+                return;
+            }
+
+            // Reset if moved to different tile
+            if (tx != breakX || ty != breakY) {
+                breakX = tx; breakY = ty; breakProgress = 0;
+            }
+
+            breakProgress += BREAK_SPEED;
+
+            if (breakProgress >= 1.0f) {
+                // Break FG first, then BG on next hold
+                if (hasFg) {
+                    world.setFg(tx, ty, Tile.AIR);
+                } else {
+                    world.setBg(tx, ty, Tile.AIR);
+                }
+                resetBreak();
+            }
+        } else {
+            // Not holding – slowly decay break progress
+            if (breakProgress > 0) breakProgress = Math.max(0, breakProgress - 0.02f);
+            if (breakProgress == 0) resetBreak();
+        }
+
+        if (rightHeld) {
+            Rectangle playerRect = new Rectangle((int) player.x, (int) player.y, Player.W, Player.H);
+            Rectangle tileRect   = new Rectangle(tx * World.TILE_SIZE, ty * World.TILE_SIZE,
+                                                  World.TILE_SIZE, World.TILE_SIZE);
+            if (!playerRect.intersects(tileRect)) {
+                if (world.getFg(tx, ty) == Tile.AIR) {
+                    // Place as foreground if adjacent to something solid or background exists
+                    world.setFg(tx, ty, hotbar[selectedSlot]);
+                } else if (world.getBg(tx, ty) == Tile.AIR) {
+                    world.setBg(tx, ty, hotbar[selectedSlot]);
+                }
+            }
+        }
+    }
+
+    private void resetBreak() { breakX = -1; breakY = -1; breakProgress = 0; }
+
+    // ────────────────── RENDERING ──────────────────
+
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2 = (Graphics2D) g;
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+
+        // Sky gradient
+        GradientPaint sky = new GradientPaint(0, 0, new Color(100, 180, 240), 0, getHeight(), new Color(170, 220, 255));
+        g2.setPaint(sky);
+        g2.fillRect(0, 0, getWidth(), getHeight());
 
         int T = World.TILE_SIZE;
-
-        // --- Tile range to draw (only visible tiles) ---
         int startX = Math.max(0, (int)(camera.x / T) - 1);
         int startY = Math.max(0, (int)(camera.y / T) - 1);
         int endX   = Math.min(World.WIDTH  - 1, startX + getWidth()  / T + 2);
         int endY   = Math.min(World.HEIGHT - 1, startY + getHeight() / T + 2);
 
-        // --- Draw tiles ---
         for (int tx = startX; tx <= endX; tx++) {
             for (int ty = startY; ty <= endY; ty++) {
-                Tile tile = world.getTile(tx, ty);
-                if (tile == Tile.AIR) continue;
-
                 int sx = camera.toScreenX(tx * T);
                 int sy = camera.toScreenY(ty * T);
 
-                // Main tile fill
-                g2.setColor(tile.color);
-                g2.fillRect(sx, sy, T, T);
+                Tile bgTile = world.getBg(tx, ty);
+                Tile fgTile = world.getFg(tx, ty);
 
-                // Darker top edge for depth (except leaves)
-                if (tile != Tile.LEAVES) {
-                    g2.setColor(tile.color.darker());
+                // --- Background layer (darker, no top border, walkthrough) ---
+                if (bgTile != Tile.AIR) {
+                    Color bgColor = bgTile.color.darker().darker();
+                    g2.setColor(bgColor);
+                    g2.fillRect(sx, sy, T, T);
+                    g2.setColor(bgColor.darker());
                     g2.drawRect(sx, sy, T - 1, T - 1);
                 }
 
-                // Grass special top highlight
-                if (tile == Tile.GRASS) {
-                    g2.setColor(new Color(80, 200, 60));
-                    g2.fillRect(sx, sy, T, 4);
+                // --- Foreground layer (full bright, solid) ---
+                if (fgTile != Tile.AIR) {
+                    g2.setColor(fgTile.color);
+                    g2.fillRect(sx, sy, T, T);
+
+                    // Depth border
+                    if (fgTile != Tile.LEAVES) {
+                        g2.setColor(fgTile.color.darker());
+                        g2.drawRect(sx, sy, T - 1, T - 1);
+                    }
+                    // Grass top highlight
+                    if (fgTile == Tile.GRASS) {
+                        g2.setColor(new Color(80, 200, 60));
+                        g2.fillRect(sx, sy, T, 4);
+                    }
                 }
 
-                // Breaking overlay
-                if (tx == breakX && ty == breakY && breakTick > 0) {
-                    int alpha = (int)(200.0 * breakTick / BREAK_TICKS);
-                    g2.setColor(new Color(0, 0, 0, alpha));
+                // --- Break progress overlay ---
+                if (tx == breakX && ty == breakY && breakProgress > 0) {
+                    int alpha = (int)(200 * breakProgress);
+                    g2.setColor(new Color(0, 0, 0, Math.min(200, alpha)));
                     g2.fillRect(sx, sy, T, T);
-                    // Crack lines
-                    g2.setColor(new Color(255, 255, 255, alpha / 2));
-                    int cracks = breakTick * 4 / BREAK_TICKS;
+                    // Crack lines proportional to progress
+                    g2.setColor(new Color(255, 255, 255, 100));
+                    int cracks = (int)(breakProgress * 5);
                     for (int c = 0; c < cracks; c++) {
-                        g2.drawLine(sx + T/2, sy + T/2, sx + (c % 2 == 0 ? T - 5 : 5), sy + (c < 2 ? 5 : T - 5));
+                        g2.drawLine(sx + T/2, sy + T/2,
+                                sx + (c % 2 == 0 ? T - 4 : 4),
+                                sy + (c < 2 ? 4 : T - 4));
                     }
                 }
             }
         }
 
-        // --- Hover tile highlight ---
+        // --- Hover outline ---
         int hoverTX = camera.toTileX(mouseScreenX);
         int hoverTY = camera.toTileY(mouseScreenY);
         int hsx = camera.toScreenX(hoverTX * T);
         int hsy = camera.toScreenY(hoverTY * T);
-        g2.setColor(new Color(255, 255, 255, 80));
+        g2.setColor(new Color(255, 255, 255, 90));
         g2.fillRect(hsx, hsy, T, T);
         g2.setColor(Color.WHITE);
+        g2.setStroke(new BasicStroke(2f));
         g2.drawRect(hsx, hsy, T, T);
+        g2.setStroke(new BasicStroke(1f));
 
-        // --- Player ---
+        // --- Player sprite ---
         int px = camera.toScreenX((int) player.x);
         int py = camera.toScreenY((int) player.y);
-        // Body
         g2.setColor(new Color(60, 120, 200));
         g2.fillRoundRect(px + 4, py, Player.W - 8, Player.H, 6, 6);
-        // Head
         g2.setColor(new Color(230, 185, 140));
         g2.fillOval(px + 4, py - 16, 16, 16);
-        // Eyes
         g2.setColor(new Color(50, 50, 80));
         g2.fillOval(px + 7, py - 12, 3, 3);
         g2.fillOval(px + 13, py - 12, 3, 3);
@@ -156,88 +226,59 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     private void drawHUD(Graphics2D g2) {
         int slotSize = 44;
         int padding  = 6;
-        int total = hotbar.length * (slotSize + padding) - padding;
-        int startX = (getWidth() - total) / 2;
-        int y = getHeight() - slotSize - 16;
+        int total    = hotbar.length * (slotSize + padding) - padding;
+        int sx0      = (getWidth() - total) / 2;
+        int y        = getHeight() - slotSize - 16;
 
         for (int i = 0; i < hotbar.length; i++) {
-            int sx = startX + i * (slotSize + padding);
+            int sx = sx0 + i * (slotSize + padding);
             boolean sel = (i == selectedSlot);
-
-            // Slot background
             g2.setColor(sel ? new Color(255, 255, 255, 200) : new Color(0, 0, 0, 140));
             g2.fillRoundRect(sx, y, slotSize, slotSize, 8, 8);
             g2.setColor(sel ? Color.YELLOW : Color.GRAY);
             g2.setStroke(new BasicStroke(sel ? 2.5f : 1.5f));
             g2.drawRoundRect(sx, y, slotSize, slotSize, 8, 8);
             g2.setStroke(new BasicStroke(1f));
-
-            // Tile color swatch
             g2.setColor(hotbar[i].color);
             g2.fillRoundRect(sx + 8, y + 8, slotSize - 16, slotSize - 16, 4, 4);
-
-            // Label
             g2.setColor(Color.WHITE);
             g2.setFont(new Font("Arial", Font.BOLD, 9));
-            String name = hotbar[i].name().substring(0, Math.min(3, hotbar[i].name().length()));
-            g2.drawString(name, sx + 4, y + slotSize - 4);
+            g2.drawString(hotbar[i].name().substring(0, Math.min(3, hotbar[i].name().length())), sx + 4, y + slotSize - 4);
         }
 
-        // Controls hint
-        g2.setColor(new Color(0, 0, 0, 140));
-        g2.fillRoundRect(8, 8, 230, 70, 8, 8);
+        // Controls
+        g2.setColor(new Color(0, 0, 0, 150));
+        g2.fillRoundRect(8, 8, 240, 85, 8, 8);
         g2.setColor(Color.WHITE);
         g2.setFont(new Font("Arial", Font.BOLD, 12));
-        g2.drawString("WASD / ← → ↑  Hareket & Zıpla", 16, 26);
-        g2.drawString("Sol Tık: Blok Kır", 16, 44);
+        g2.drawString("WASD / ← →   Hareket & Zıpla", 16, 26);
+        g2.drawString("Sol Tık (Basılı): Kır [ön → arka]", 16, 44);
         g2.drawString("Sağ Tık: Blok Yerleştir", 16, 62);
-        g2.drawString("Scroll: Blok Seç", 16, 78);
+        g2.drawString("Scroll / 1-5: Blok Seç", 16, 80);
     }
 
-    // ============ Mouse events ============
-    @Override
-    public void mousePressed(MouseEvent e) {
-        int tx = camera.toTileX(e.getX());
-        int ty = camera.toTileY(e.getY());
-
-        if (SwingUtilities.isLeftMouseButton(e)) {
-            // Start breaking
-            if (tx != breakX || ty != breakY) { breakX = tx; breakY = ty; breakTick = 0; }
-            Tile t = world.getTile(tx, ty);
-            if (t != Tile.AIR && t != Tile.BEDROCK) {
-                breakTick++;
-                if (breakTick >= BREAK_TICKS) {
-                    world.setTile(tx, ty, Tile.AIR);
-                    breakX = -1; breakY = -1; breakTick = 0;
-                }
-            }
-        } else if (SwingUtilities.isRightMouseButton(e)) {
-            // Place block (not on player)
-            Rectangle playerRect = new Rectangle((int)player.x, (int)player.y, Player.W, Player.H);
-            Rectangle tileRect   = new Rectangle(tx * World.TILE_SIZE, ty * World.TILE_SIZE, World.TILE_SIZE, World.TILE_SIZE);
-            if (world.getTile(tx, ty) == Tile.AIR && !playerRect.intersects(tileRect)) {
-                world.setTile(tx, ty, hotbar[selectedSlot]);
-            }
-        }
+    // ──────────── INPUT ────────────
+    @Override public void mousePressed(MouseEvent e) {
+        if (SwingUtilities.isLeftMouseButton(e))  leftHeld  = true;
+        if (SwingUtilities.isRightMouseButton(e)) rightHeld = true;
         requestFocusInWindow();
     }
-
+    @Override public void mouseReleased(MouseEvent e) {
+        if (SwingUtilities.isLeftMouseButton(e))  { leftHeld  = false; resetBreak(); }
+        if (SwingUtilities.isRightMouseButton(e)) rightHeld = false;
+    }
     @Override public void mouseClicked(MouseEvent e) {}
-    @Override public void mouseReleased(MouseEvent e) { breakX = -1; breakY = -1; breakTick = 0; }
     @Override public void mouseEntered(MouseEvent e) {}
     @Override public void mouseExited(MouseEvent e) {}
 
-    // ============ Key events ============
-    @Override
-    public void keyPressed(KeyEvent e) {
+    @Override public void keyPressed(KeyEvent e) {
         player.handleKeyPress(e.getKeyCode());
-        // Number keys for hotbar
         int k = e.getKeyCode() - KeyEvent.VK_1;
         if (k >= 0 && k < hotbar.length) selectedSlot = k;
         if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
             gameTimer.stop();
-            JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(this);
-            if (frame != null) frame.dispose();
+            JFrame f = (JFrame) SwingUtilities.getWindowAncestor(this);
+            if (f != null) f.dispose();
         }
     }
     @Override public void keyReleased(KeyEvent e) { player.handleKeyRelease(e.getKeyCode()); }
