@@ -188,6 +188,19 @@ public class Player {
         }
     }
 
+    public void resetForRespawn() {
+        // Reset gameplay state after death menu "respawn".
+        healthHalf = maxHealthHalf;
+        damageFlash = 0f;
+        vx = 0;
+        vy = 0;
+        onGround = false;
+
+        // Private fall tracking fields live inside this class.
+        trackingFall = false;
+        fallStartCenterY = 0;
+    }
+
     private void applyDamageHalf(int damageHalf) {
         int before = healthHalf;
         healthHalf = Math.max(0, healthHalf - damageHalf);

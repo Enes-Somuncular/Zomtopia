@@ -32,6 +32,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     private final List<ItemEntity> droppedItems = new CopyOnWriteArrayList<>();
     private boolean inventoryOpen = false;
     private boolean escapeMenuOpen = false;
+    private boolean deathMenuOpen = false;
     private int draggedSourceIdx = -1;
     private ItemStack draggedStack = null;
 
@@ -114,11 +115,16 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
 
     private void startGameLoop() {
         gameTimer = new Timer(16, e -> {
-            if (!escapeMenuOpen) {
+            if (!escapeMenuOpen && !deathMenuOpen) {
                 player.update(world);
                 camera.follow(player.x + Player.W / 2.0, player.y + Player.H / 2.0);
                 updateItems();
                 handleBlockInteraction();
+                
+                // Open death menu when health reaches zero.
+                if (!deathMenuOpen && player.healthHalf <= 0) {
+                    openDeathMenu();
+                }
                 
                 // Continuous placement with cooldown
                 if (rightHeld && !inventoryOpen) {
@@ -134,6 +140,41 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             repaint();
         });
         gameTimer.start();
+    }
+
+    private void openDeathMenu() {
+        deathMenuOpen = true;
+        escapeMenuOpen = false;
+        inventoryOpen = false;
+        leftHeld = false;
+        rightHeld = false;
+        draggedStack = null;
+        draggedSourceIdx = -1;
+        resetBreak();
+        
+        if (player != null) {
+            player.left = player.right = player.jump = player.sprinting = player.crouchInput = false;
+        }
+    }
+
+    private void respawnPlayer() {
+        // Reset player health/state
+        player.resetForRespawn();
+
+        // Respawn above surface at world middle (same logic as constructor).
+        int mx = World.WIDTH / 2;
+        player.x = mx * World.TILE_SIZE;
+        for (int y = 0; y < World.HEIGHT; y++) {
+            if (world.getFg(mx, y) != Tile.AIR) {
+                player.y = (y - 2) * World.TILE_SIZE;
+                break;
+            }
+        }
+
+        camera.follow(player.x + Player.W / 2.0, player.y + Player.H / 2.0);
+        
+        deathMenuOpen = false;
+        repaint();
     }
 
     private void updateItems() {
@@ -399,7 +440,9 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             drawExpandedInventory(g2);
             drawDraggedItem(g2);
         }
-        if (escapeMenuOpen) {
+        if (deathMenuOpen) {
+            drawDeathMenu(g2);
+        } else if (escapeMenuOpen) {
             drawEscapeMenu(g2);
         }
     }
@@ -441,6 +484,46 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             g2.setFont(new Font("Arial", Font.BOLD, 14));
             int tw = g2.getFontMetrics().stringWidth(buttons[i]);
             g2.drawString(buttons[i], bx + (bw - tw)/2, by + 28);
+        }
+    }
+
+    private void drawDeathMenu(Graphics2D g2) {
+        int w = getWidth(), h = getHeight();
+        // Dim background
+        g2.setColor(new Color(0, 0, 0, 170));
+        g2.fillRect(0, 0, w, h);
+
+        int menuW = 300, menuH = 320;
+        int menuX = (w - menuW) / 2;
+        int menuY = (h - menuH) / 2;
+
+        g2.setColor(new Color(60, 20, 20, 240));
+        g2.fillRoundRect(menuX, menuY, menuW, menuH, 20, 20);
+        g2.setColor(new Color(180, 100, 100, 120));
+        g2.setStroke(new BasicStroke(3f));
+        g2.drawRoundRect(menuX, menuY, menuW, menuH, 20, 20);
+
+        g2.setColor(Color.WHITE);
+        g2.setFont(new Font("Arial", Font.BOLD, 24));
+        String title = "ÖLDÜN";
+        g2.drawString(title, menuX + (menuW - g2.getFontMetrics().stringWidth(title)) / 2, menuY + 45);
+
+        String[] buttons = {"YENİDEN DOĞ", "KAYDET", "KAYDET VE ÇIK"};
+        for (int i = 0; i < buttons.length; i++) {
+            int bx = menuX + 30;
+            int by = menuY + 90 + i * 70;
+            int bw = menuW - 60;
+            int bh = 45;
+
+            g2.setColor(new Color(50, 30, 35));
+            g2.fillRoundRect(bx, by, bw, bh, 10, 10);
+            g2.setColor(new Color(255, 255, 255, 30));
+            g2.drawRoundRect(bx, by, bw, bh, 10, 10);
+
+            g2.setColor(Color.WHITE);
+            g2.setFont(new Font("Arial", Font.BOLD, 14));
+            int tw = g2.getFontMetrics().stringWidth(buttons[i]);
+            g2.drawString(buttons[i], bx + (bw - tw) / 2, by + 28);
         }
     }
 
@@ -835,6 +918,34 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     }
 
     @Override public void mousePressed(MouseEvent e) {
+        if (deathMenuOpen) {
+            int mx = e.getX(), my = e.getY();
+            int w = 800, h = 600;
+            int menuW = 300, menuH = 320;
+            int menuX = (w - menuW) / 2;
+            int menuY = (h - menuH) / 2;
+
+            for (int i = 0; i < 3; i++) {
+                int bx = menuX + 30;
+                int by = menuY + 90 + i * 70;
+                int bw = menuW - 60;
+                int bh = 45;
+                if (mx >= bx && mx <= bx + bw && my >= by && my <= by + bh) {
+                    if (i == 0) {
+                        respawnPlayer();
+                    } else if (i == 1) {
+                        SaveManager.saveGame(world, player);
+                    } else if (i == 2) {
+                        SaveManager.saveGame(world, player);
+                        System.exit(0);
+                    }
+                    repaint();
+                    return;
+                }
+            }
+            return;
+        }
+
         if (escapeMenuOpen) {
             int mx = e.getX(), my = e.getY();
             int w = 800, h = 600;
@@ -988,12 +1099,14 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
 
     @Override public void keyPressed(KeyEvent e) {
         if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+            if (deathMenuOpen) return;
             escapeMenuOpen = !escapeMenuOpen;
             if (escapeMenuOpen) inventoryOpen = false;
             repaint();
             return;
         }
         if (escapeMenuOpen) return;
+        if (deathMenuOpen) return;
 
         player.handleKeyPress(e.getKeyCode());
         // Hotbar selection: only map numeric keys 1-5 to slots 0-4.
