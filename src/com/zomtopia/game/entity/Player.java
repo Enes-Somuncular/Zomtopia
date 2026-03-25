@@ -43,7 +43,7 @@ public class Player {
 
     // Fall tracking for landing damage.
     private boolean trackingFall = false;
-    private double fallStartY = 0; // top-left Y when leaving the ground
+    private double fallStartCenterY = 0; // player center Y when leaving the ground
 
     // Fall damage tuning:
     // We use "dBlocks" (vertical distance in tiles) and convert it into damage (half-hearts).
@@ -111,7 +111,7 @@ public class Player {
         // Start fall tracking when we leave ground.
         if (wasOnGround && !onGround && !trackingFall) {
             trackingFall = true;
-            fallStartY = yBefore;
+            fallStartCenterY = yBefore + H / 2.0;
         }
 
         // --- Crouching Logic ---
@@ -157,8 +157,8 @@ public class Player {
 
         // Apply fall damage on landing.
         if (trackingFall && !wasOnGround && onGround) {
-            // fallStartY - y is the approximate vertical distance traveled.
-            double fallDist = fallStartY - y;
+            // Measure fall distance using player center-to-center.
+            double fallDist = fallStartCenterY - (y + H / 2.0);
             if (fallDist > 0) {
                 int damageHalf = computeMappedFallDamageHalfHearts(fallDist);
                 if (damageHalf > 0) applyDamageHalf(damageHalf);
@@ -170,7 +170,7 @@ public class Player {
         // (e.g. walking off an edge: wasOnGround==true, onGround becomes false after collision checks)
         if (!trackingFall && wasOnGround && !onGround) {
             trackingFall = true;
-            fallStartY = yBefore;
+            fallStartCenterY = yBefore + H / 2.0;
         }
 
         // Clamp to world
