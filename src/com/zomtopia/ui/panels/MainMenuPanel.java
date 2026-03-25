@@ -4,6 +4,7 @@ import javax.swing.*;
 import java.awt.*;
 import com.zomtopia.main.GameApp;
 import com.zomtopia.utils.ResourceManager;
+import com.zomtopia.audio.AudioManager;
 
 public class MainMenuPanel extends JPanel {
     private GameApp gameApp;
@@ -23,9 +24,9 @@ public class MainMenuPanel extends JPanel {
         JButton settingsButton = createMenuButton("Ayarlar");
         JButton exitButton = createMenuButton("Çıkış");
 
-        playButton.addActionListener(e -> gameApp.showPanel("PlayMenu"));
-        settingsButton.addActionListener(e -> gameApp.showPanel("SettingsMenu"));
-        exitButton.addActionListener(e -> System.exit(0));
+        playButton.addActionListener(e -> { AudioManager.getInstance().playMenuClick(); gameApp.showPanel("PlayMenu"); });
+        settingsButton.addActionListener(e -> { AudioManager.getInstance().playMenuClick(); gameApp.showPanel("SettingsMenu"); });
+        exitButton.addActionListener(e -> { AudioManager.getInstance().playMenuClick(); System.exit(0); });
 
         centerPanel.add(Box.createVerticalStrut(200));
         centerPanel.add(playButton);

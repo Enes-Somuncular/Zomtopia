@@ -4,6 +4,7 @@ import javax.swing.*;
 import java.awt.*;
 import com.zomtopia.main.GameApp;
 import com.zomtopia.utils.ResourceManager;
+import com.zomtopia.audio.AudioManager;
 
 public class PlayMenuPanel extends JPanel {
     private GameApp gameApp;
@@ -49,6 +50,7 @@ public class PlayMenuPanel extends JPanel {
         JButton backButton = createButton("Geri");
 
         nextButton.addActionListener(e -> {
+            AudioManager.getInstance().playMenuClick();
             String name = nameField.getText();
             if (name.trim().isEmpty()) {
                 JOptionPane.showMessageDialog(this, "Lütfen bir isim giriniz!", "Hata", JOptionPane.WARNING_MESSAGE);
@@ -56,7 +58,7 @@ public class PlayMenuPanel extends JPanel {
                 JOptionPane.showMessageDialog(this, "Hoşgeldin, " + name + "!\nOyun yükleniyor...", "Zomtopia", JOptionPane.INFORMATION_MESSAGE);
             }
         });
-        backButton.addActionListener(e -> gameApp.showPanel("MainMenu"));
+        backButton.addActionListener(e -> { AudioManager.getInstance().playMenuClick(); gameApp.showPanel("MainMenu"); });
 
         buttonPanel.add(backButton);
         buttonPanel.add(nextButton);

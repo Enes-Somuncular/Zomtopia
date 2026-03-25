@@ -5,6 +5,7 @@ import java.awt.*;
 import com.zomtopia.main.GameApp;
 import com.zomtopia.utils.ResourceManager;
 import com.zomtopia.ui.components.AudioSettingRow;
+import com.zomtopia.audio.AudioManager;
 
 public class SettingsMenuPanel extends JPanel {
     private Image backgroundImage;
@@ -22,10 +23,10 @@ public class SettingsMenuPanel extends JPanel {
         titleLabel.setFont(new Font("Arial", Font.BOLD, 36));
         titleLabel.setForeground(Color.WHITE);
         titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        
-        AudioSettingRow soundRow = new AudioSettingRow("Genel Ses");
-        AudioSettingRow musicRow = new AudioSettingRow("Müzik");
-        AudioSettingRow menuSoundRow = new AudioSettingRow("Menü Sesi");
+
+        AudioSettingRow soundRow = new AudioSettingRow("Genel Ses", "sfx");
+        AudioSettingRow musicRow = new AudioSettingRow("Müzik", "music");
+        AudioSettingRow menuSoundRow = new AudioSettingRow("Menü Sesi", "menu");
 
         JButton backButton = new JButton("Geri");
         backButton.setFont(new Font("Arial", Font.BOLD, 20));
