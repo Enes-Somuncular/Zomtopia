@@ -45,6 +45,15 @@ public class Player {
     private boolean trackingFall = false;
     private double fallStartY = 0; // top-left Y when leaving the ground
 
+    // Fall damage tuning:
+    // We use "dBlocks" (vertical distance in tiles) and convert it into damage (half-hearts).
+    // Desired points (hearts):
+    // d=5  -> 1.0
+    // d=10 -> 2.5
+    // d=15 -> 6.0
+    // d=20 -> 8.5
+    private static final double FALL_START_BLOCKS = 5.0;
+
     // Input flags (set by GamePanel)
     public boolean left, right, jump, sprinting, crouchInput;
     public boolean crouching;
@@ -151,16 +160,8 @@ public class Player {
             // fallStartY - y is the approximate vertical distance traveled.
             double fallDist = fallStartY - y;
             if (fallDist > 0) {
-                double startRange = 2.0 * World.TILE_SIZE;
-                double extra = fallDist - startRange;
-
-                if (extra > 0) {
-                    // Deal 1 half-heart per full extra tile fallen.
-                    int damageHalf = (int) Math.floor(extra / World.TILE_SIZE);
-                    if (damageHalf > 0) {
-                        applyDamageHalf(damageHalf);
-                    }
-                }
+                int damageHalf = computeMappedFallDamageHalfHearts(fallDist);
+                if (damageHalf > 0) applyDamageHalf(damageHalf);
             }
             trackingFall = false;
         }
@@ -191,6 +192,42 @@ public class Player {
         if (healthHalf < before) {
             damageFlash = 1f;
         }
+    }
+
+    private static double lerp(double a, double b, double t) {
+        return a + (b - a) * t;
+    }
+
+    private int computeMappedFallDamageHalfHearts(double fallDistPx) {
+        double tile = World.TILE_SIZE;
+        int dBlocks = (int) Math.floor(fallDistPx / tile);
+
+        if (dBlocks <= (int) FALL_START_BLOCKS) {
+            // d=5 -> 1 heart => 2 half-hearts
+            if (dBlocks < (int) FALL_START_BLOCKS) return 0;
+        }
+        if (dBlocks < (int) FALL_START_BLOCKS) return 0;
+
+        // Convert dBlocks to "hearts" using piecewise-linear interpolation between the points.
+        // Then convert hearts -> half-hearts.
+        double hearts;
+        if (dBlocks <= 10) {
+            hearts = lerp(1.0, 2.5, (dBlocks - 5) / 5.0);
+        } else if (dBlocks <= 15) {
+            hearts = lerp(2.5, 6.0, (dBlocks - 10) / 5.0);
+        } else if (dBlocks <= 20) {
+            hearts = lerp(6.0, 8.5, (dBlocks - 15) / 5.0);
+        } else {
+            // Extend using the last slope: 8.5 at 20 and slope = (8.5-6.0)/5 = 0.5 hearts per block.
+            hearts = 8.5 + 0.5 * (dBlocks - 20);
+        }
+
+        int damageHalfRaw = (int) Math.floor(hearts * 2.0 + 1e-6);
+
+        // "Tam kalp": only apply full-heart damage (even number of half-hearts).
+        // Rounds down to nearest even half-heart.
+        int damageHalfFullHearts = (damageHalfRaw / 2) * 2;
+        return damageHalfFullHearts;
     }
 
     public void handleKeyPress(int key) {
