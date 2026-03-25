@@ -230,6 +230,37 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         int sx0      = (getWidth() - total) / 2;
         int y        = getHeight() - slotSize - 16;
 
+        // --- Status Bars (Health & Stamina) ---
+        int barWidth = total;
+        int barX = sx0;
+        // Health: 10 hearts
+        int heartSize = 16;
+        int heartPadding = 4;
+        for (int i = 0; i < player.maxHealth; i++) {
+            int hx = barX + i * (heartSize + heartPadding);
+            if (i < player.health) {
+                g2.setColor(new Color(220, 40, 40)); // Filled heart red
+            } else {
+                g2.setColor(new Color(60, 20, 20, 150)); // Empty heart dark
+            }
+            // Simplification: just a small rounded rect for now for pixel-look
+            g2.fillRoundRect(hx, y - 38, heartSize, heartSize, 4, 4);
+            g2.setColor(new Color(255, 255, 255, 80));
+            g2.drawRoundRect(hx, y - 38, heartSize, heartSize, 4, 4);
+        }
+
+        // Stamina bar
+        int sBarH = 8;
+        int sBarY = y - 18;
+        g2.setColor(new Color(0, 0, 0, 120));
+        g2.fillRoundRect(barX, sBarY, barWidth, sBarH, 4, 4);
+        float staminaRatio = player.stamina / player.maxStamina;
+        g2.setColor(staminaRatio > 0.2 ? new Color(40, 200, 40) : new Color(200, 150, 40));
+        g2.fillRoundRect(barX, sBarY, (int)(barWidth * staminaRatio), sBarH, 4, 4);
+        g2.setColor(Color.WHITE);
+        g2.drawRoundRect(barX, sBarY, barWidth, sBarH, 4, 4);
+
+        // --- Hotbar ---
         for (int i = 0; i < hotbar.length; i++) {
             int sx = sx0 + i * (slotSize + padding);
             boolean sel = (i == selectedSlot);
@@ -248,13 +279,14 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
 
         // Controls
         g2.setColor(new Color(0, 0, 0, 150));
-        g2.fillRoundRect(8, 8, 240, 85, 8, 8);
+        g2.fillRoundRect(8, 8, 240, 95, 8, 8);
         g2.setColor(Color.WHITE);
         g2.setFont(new Font("Arial", Font.BOLD, 12));
         g2.drawString("WASD / ← →   Hareket & Zıpla", 16, 26);
-        g2.drawString("Sol Tık (Basılı): Kır [ön → arka]", 16, 44);
-        g2.drawString("Sağ Tık: Blok Yerleştir", 16, 62);
-        g2.drawString("Scroll / 1-5: Blok Seç", 16, 80);
+        g2.drawString("SHIFT: Koşma (Stamina)", 16, 44);
+        g2.drawString("Sol Tık (Basılı): Kır [ön → arka]", 16, 62);
+        g2.drawString("Sağ Tık: Blok Yerleştir", 16, 80);
+        g2.drawString("Scroll / 1-5: Blok Seç", 16, 98);
     }
 
     // ──────────── INPUT ────────────

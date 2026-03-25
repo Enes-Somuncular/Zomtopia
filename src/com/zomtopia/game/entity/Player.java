@@ -15,18 +15,42 @@ public class Player {
     private static final double GRAVITY    = 0.5;
     private static final double MAX_VY     = 14;
     private static final double MOVE_SPEED = 3.0;
+    private static final double SPRINT_SPEED = 5.5;
     private static final double JUMP_VY    = -11.0;
     private static final double FRICTION   = 0.75;
+
+    public int health = 10;
+    public int maxHealth = 10;
+    public float stamina = 100f;
+    public float maxStamina = 100f;
 
     public boolean onGround = false;
 
     // Input flags (set by GamePanel)
-    public boolean left, right, jump;
+    public boolean left, right, jump, sprinting;
 
     public void update(World world) {
         // Horizontal
-        if (left)  vx -= MOVE_SPEED;
-        if (right) vx += MOVE_SPEED;
+        double currentSpeed = MOVE_SPEED;
+        boolean isMoving = left || right;
+
+        if (sprinting && isMoving && stamina > 0) {
+            currentSpeed = SPRINT_SPEED;
+            stamina -= 1.0f; // Consume stamina
+            if (stamina < 0) {
+                stamina = 0;
+                sprinting = false;
+            }
+        } else {
+            // Recharge stamina
+            if (stamina < maxStamina) {
+                stamina += 0.5f;
+                if (stamina > maxStamina) stamina = maxStamina;
+            }
+        }
+
+        if (left)  vx -= currentSpeed;
+        if (right) vx += currentSpeed;
         vx *= FRICTION;
         if (Math.abs(vx) < 0.1) vx = 0;
 
@@ -70,11 +94,13 @@ public class Player {
         if (key == KeyEvent.VK_LEFT  || key == KeyEvent.VK_A) left  = true;
         if (key == KeyEvent.VK_RIGHT || key == KeyEvent.VK_D) right = true;
         if (key == KeyEvent.VK_UP    || key == KeyEvent.VK_W || key == KeyEvent.VK_SPACE) jump = true;
+        if (key == KeyEvent.VK_SHIFT) sprinting = true;
     }
 
     public void handleKeyRelease(int key) {
         if (key == KeyEvent.VK_LEFT  || key == KeyEvent.VK_A) left  = false;
         if (key == KeyEvent.VK_RIGHT || key == KeyEvent.VK_D) right = false;
         if (key == KeyEvent.VK_UP    || key == KeyEvent.VK_W || key == KeyEvent.VK_SPACE) jump = false;
+        if (key == KeyEvent.VK_SHIFT) sprinting = false;
     }
 }
