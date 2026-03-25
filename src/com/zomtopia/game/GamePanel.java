@@ -1232,15 +1232,51 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             int slot = getSlotAt(e.getX(), e.getY());
             if (slot != -1) {
                 Inventory inv = player.getInventory();
-                if (slot < 100) { // Standard inventory slot
-                    draggedStack = inv.getSlots()[slot];
-                    inv.getSlots()[slot] = null;
-                } else { // Equipment slot
-                    int eqIdx = slot - 100;
-                    draggedStack = inv.getEquipment()[eqIdx];
-                    inv.getEquipment()[eqIdx] = null;
+
+                // Right-click while inventory is open should not start a drag that removes items.
+                // For wearables: auto-equip directly.
+                if (SwingUtilities.isRightMouseButton(e) && slot < 100) {
+                    ItemStack stack = inv.getSlots()[slot];
+                    if (stack != null && stack.tile != Tile.AIR && stack.tile.category != Tile.Category.BLOCK) {
+                        Tile.Category[] cats = {
+                            Tile.Category.HAT,
+                            Tile.Category.MASK,
+                            Tile.Category.SHIRT,
+                            Tile.Category.PANTS,
+                            Tile.Category.SHOES,
+                            Tile.Category.BACK
+                        };
+                        int eqIdx = -1;
+                        for (int i = 0; i < cats.length; i++) {
+                            if (stack.tile.category == cats[i]) { eqIdx = i; break; }
+                        }
+                        if (eqIdx != -1) {
+                            ItemStack current = inv.getEquipment()[eqIdx];
+                            if (current == null || current.tile == Tile.AIR) {
+                                inv.getEquipment()[eqIdx] = new ItemStack(stack.tile, 1, false);
+                                stack.amount -= 1;
+                                if (stack.amount <= 0) inv.getSlots()[slot] = null;
+                                return;
+                            }
+                        }
+                    }
                 }
-                draggedSourceIdx = slot;
+
+                // Only left click starts drag/drop from inventory.
+                if (SwingUtilities.isLeftMouseButton(e)) {
+                    if (slot < 100) { // Standard inventory slot
+                        draggedStack = inv.getSlots()[slot];
+                        inv.getSlots()[slot] = null;
+                    } else { // Equipment slot
+                        int eqIdx = slot - 100;
+                        draggedStack = inv.getEquipment()[eqIdx];
+                        inv.getEquipment()[eqIdx] = null;
+                    }
+                    draggedSourceIdx = slot;
+                    return;
+                }
+
+                // For right-click on equipment slot or non-left clicks: do nothing.
                 return;
             }
         }
