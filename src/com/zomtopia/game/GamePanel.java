@@ -1,5 +1,6 @@
 package com.zomtopia.game;
 
+import com.zomtopia.game.entity.ItemEntity;
 import com.zomtopia.game.entity.Player;
 import com.zomtopia.game.world.Tile;
 import com.zomtopia.game.world.World;
@@ -8,6 +9,8 @@ import com.zomtopia.game.world.WorldGenerator;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class GamePanel extends JPanel implements KeyListener, MouseListener {
 
@@ -23,6 +26,10 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     private int breakX = -1, breakY = -1;
     private float breakProgress = 0;        // 0.0 – 1.0
     private static final float BREAK_SPEED = 0.065f;  // per tick
+
+    // Items and Inventory UI
+    private final List<ItemEntity> droppedItems = new CopyOnWriteArrayList<>();
+    private boolean inventoryOpen = false;
 
     // Mouse state
     private int mouseScreenX, mouseScreenY;
@@ -65,10 +72,36 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         gameTimer = new Timer(16, e -> {
             handleBlockInteraction();
             player.update(world);
+            updateItems();
             camera.follow(player.x + Player.W / 2.0, player.y + Player.H / 2.0);
             repaint();
         });
         gameTimer.start();
+    }
+
+    private void updateItems() {
+        double px = player.x + Player.W / 2.0;
+        double py = player.y + Player.H / 2.0;
+
+        for (ItemEntity item : droppedItems) {
+            item.update(world);
+
+            double dx = px - (item.x + ItemEntity.SIZE / 2.0);
+            double dy = py - (item.y + ItemEntity.SIZE / 2.0);
+            double distSq = dx * dx + dy * dy;
+
+            if (distSq < Math.pow(World.TILE_SIZE * 5, 2)) {
+                // Suck towards player
+                item.vx += dx * 0.03;
+                item.vy += dy * 0.03;
+            }
+
+            if (distSq < Math.pow(World.TILE_SIZE * 0.8, 2)) {
+                if (player.getInventory().addItem(item.tile, 1)) {
+                    droppedItems.remove(item);
+                }
+            }
+        }
     }
 
     /** Called every tick: handle held mouse buttons */
@@ -117,7 +150,8 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                     brokenTile = bgTile;
                     world.setBg(tx, ty, Tile.AIR);
                 }
-                player.getInventory().addItem(brokenTile, 1);
+                // Spawn dropped item instead of direct add
+                droppedItems.add(new ItemEntity(tx * World.TILE_SIZE + 8, ty * World.TILE_SIZE + 8, brokenTile));
                 resetBreak();
             }
         } else {
@@ -255,7 +289,62 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         g2.fillOval(spx + 7, spy - 12, 3, 3);
         g2.fillOval(spx + 13, spy - 12, 3, 3);
 
+        drawDroppedItems(g2);
         drawHUD(g2);
+        if (inventoryOpen) drawExpandedInventory(g2);
+    }
+
+    private void drawDroppedItems(Graphics2D g2) {
+        for (ItemEntity item : droppedItems) {
+            int sx = camera.toScreenX((int) item.x);
+            int sy = camera.toScreenY((int) item.y);
+            g2.setColor(item.tile.color.darker());
+            g2.fillRoundRect(sx, sy, ItemEntity.SIZE, ItemEntity.SIZE, 4, 4);
+            g2.setColor(item.tile.color);
+            g2.fillRoundRect(sx + 2, sy + 2, ItemEntity.SIZE - 4, ItemEntity.SIZE - 4, 2, 2);
+        }
+    }
+
+    private void drawExpandedInventory(Graphics2D g2) {
+        int slotSize = 44;
+        int padding  = 6;
+        int cols     = 10;
+        int rows     = 3;
+        int totalW   = cols * (slotSize + padding) - padding;
+        int totalH   = rows * (slotSize + padding) - padding;
+        int x0       = (getWidth() - totalW) / 2;
+        int y0       = (getHeight() - totalH) / 2 - 50;
+
+        // Dim background
+        g2.setColor(new Color(0, 0, 0, 180));
+        g2.fillRect(0, 0, getWidth(), getHeight());
+        
+        g2.setColor(Color.WHITE);
+        g2.setFont(new Font("Arial", Font.BOLD, 22));
+        g2.drawString("ENVANTER", x0, y0 - 20);
+
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
+                int slotIdx = 10 + (r * cols + c); // Starts after hotbar (0-9)
+                int sx = x0 + c * (slotSize + padding);
+                int sy = y0 + r * (slotSize + padding);
+                
+                com.zomtopia.game.inventory.ItemStack stack = player.getInventory().getStack(slotIdx);
+                
+                g2.setColor(new Color(40, 40, 40, 220));
+                g2.fillRoundRect(sx, sy, slotSize, slotSize, 8, 8);
+                g2.setColor(Color.GRAY);
+                g2.drawRoundRect(sx, sy, slotSize, slotSize, 8, 8);
+                
+                if (stack != null && stack.tile != Tile.AIR) {
+                    g2.setColor(stack.tile.color);
+                    g2.fillRoundRect(sx + 8, sy + 8, slotSize - 16, slotSize - 16, 4, 4);
+                    g2.setColor(Color.WHITE);
+                    g2.setFont(new Font("Arial", Font.BOLD, 11));
+                    g2.drawString(String.valueOf(stack.amount), sx + 4, sy + 14);
+                }
+            }
+        }
     }
 
     private void drawHUD(Graphics2D g2) {
@@ -352,6 +441,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         player.handleKeyPress(e.getKeyCode());
         int k = e.getKeyCode() - KeyEvent.VK_1;
         if (k >= 0 && k < com.zomtopia.game.inventory.Inventory.SIZE) selectedSlot = k;
+        if (e.getKeyCode() == KeyEvent.VK_E) inventoryOpen = !inventoryOpen;
         if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
             gameTimer.stop();
             JFrame f = (JFrame) SwingUtilities.getWindowAncestor(this);

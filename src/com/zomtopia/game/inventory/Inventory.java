@@ -4,7 +4,7 @@ import com.zomtopia.game.world.Tile;
 
 public class Inventory {
     private final ItemStack[] slots;
-    public static final int SIZE = 10;
+    public static final int SIZE = 40;
 
     public Inventory() {
         slots = new ItemStack[SIZE];
