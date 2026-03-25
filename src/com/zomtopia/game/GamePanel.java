@@ -249,16 +249,22 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             }
         }
 
-        // --- Hover outline (Contextual range) ---
-        Tile fg = world.getFg(targetTX, targetTY);
-        boolean showHover = (fg != Tile.AIR) ? isInRangeBreak : isInRangePlace;
+        // --- Hover outline (Always visible for clarity, color-coded by range) ---
+        if (!inventoryOpen) {
+            Tile fg = world.getFg(targetTX, targetTY);
+            boolean inRange = (fg != Tile.AIR) ? isInRangeBreak : isInRangePlace;
 
-        if (showHover && !inventoryOpen) {
             int hsx = camera.toScreenX(targetTX * T);
             int hsy = camera.toScreenY(targetTY * T);
-            g2.setColor(new Color(255, 255, 255, 80));
+
+            if (inRange) {
+                g2.setColor(new Color(255, 255, 255, 80)); // White if in range
+            } else {
+                g2.setColor(new Color(255, 0, 0, 40));     // Faint red if out of range
+            }
             g2.fillRect(hsx, hsy, T, T);
-            g2.setColor(Color.WHITE);
+            
+            g2.setColor(inRange ? Color.WHITE : new Color(255, 100, 100, 100));
             g2.setStroke(new BasicStroke(2f));
             g2.drawRect(hsx, hsy, T, T);
         }
