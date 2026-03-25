@@ -923,8 +923,12 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         if (escapeMenuOpen) return;
 
         player.handleKeyPress(e.getKeyCode());
-        int k = e.getKeyCode() - KeyEvent.VK_1;
-        if (k >= 0 && k < com.zomtopia.game.inventory.Inventory.SIZE) selectedSlot = k;
+        // Hotbar selection: only map numeric keys 1-5 to slots 0-4.
+        // Otherwise, non-numeric keys (e.g. A/D/W) can accidentally fall into range
+        // due to keyCode ordering and switch the selected item.
+        if (e.getKeyCode() >= KeyEvent.VK_1 && e.getKeyCode() <= KeyEvent.VK_5) {
+            selectedSlot = e.getKeyCode() - KeyEvent.VK_1;
+        }
         if (e.getKeyCode() == KeyEvent.VK_E) {
             if (inventoryOpen && draggedStack != null) {
                 player.getInventory().setStack(draggedSourceIdx, draggedStack);
