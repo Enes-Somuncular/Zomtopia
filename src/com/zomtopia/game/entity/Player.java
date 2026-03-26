@@ -116,9 +116,14 @@ public class Player {
 
         // Starvation damage
         if (foodHalf <= 0) {
-            // Take 1 half-heart damage every 4 seconds (approx 250 ticks)
             if (System.currentTimeMillis() % 4000 < 20) {
                 applyDamageHalf(1);
+            }
+        } 
+        // Regeneration: if food is high (>= 18 half-units / 9 full icons), heal slowly.
+        else if (foodHalf >= 18 && healthHalf < maxHealthHalf) {
+            if (System.currentTimeMillis() % 3000 < 20) {
+                healthHalf = Math.min(maxHealthHalf, healthHalf + 1);
             }
         }
 
