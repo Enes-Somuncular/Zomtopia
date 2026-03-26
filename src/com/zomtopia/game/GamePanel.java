@@ -1618,11 +1618,10 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         if (deathMenuOpen) return;
 
         player.handleKeyPress(e.getKeyCode());
-        // Hotbar selection: only map numeric keys 1-5 to slots 0-4.
-        // Otherwise, non-numeric keys (e.g. A/D/W) can accidentally fall into range
-        // due to keyCode ordering and switch the selected item.
-        if (e.getKeyCode() >= KeyEvent.VK_1 && e.getKeyCode() <= KeyEvent.VK_5) {
+        if (e.getKeyCode() >= KeyEvent.VK_1 && e.getKeyCode() <= KeyEvent.VK_9) {
             selectedSlot = e.getKeyCode() - KeyEvent.VK_1;
+        } else if (e.getKeyCode() == KeyEvent.VK_0) {
+            selectedSlot = 9;
         }
         if (e.getKeyCode() == KeyEvent.VK_E) {
             if (inventoryOpen && draggedStack != null) {
