@@ -797,7 +797,11 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         g2.setColor(new Color(0, 0, 0, 120));
         g2.fillRoundRect(barX, sBarY, barWidth, sBarH, 4, 4);
         float staminaRatio = player.stamina / player.maxStamina;
-        g2.setColor(staminaRatio > 0.2 ? new Color(40, 200, 40) : new Color(200, 150, 40));
+        if (player.isStaminaExhausted && staminaRatio < 0.3f) { // Red when exhausted and below 30%
+            g2.setColor(new Color(255, 60, 60, 200));
+        } else {
+            g2.setColor(staminaRatio > 0.2 ? new Color(40, 200, 40) : new Color(200, 150, 40));
+        }
         g2.fillRoundRect(barX, sBarY, (int)(barWidth * staminaRatio), sBarH, 4, 4);
         g2.setColor(Color.WHITE);
         g2.drawRoundRect(barX, sBarY, barWidth, sBarH, 4, 4);

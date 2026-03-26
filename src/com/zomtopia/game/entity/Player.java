@@ -38,6 +38,7 @@ public class Player {
     public int foodHalf = 20;
     public int maxFoodHalf = 20;
     private float foodExhaustion = 0f; // Internal counter for sub-unit depletion
+    public boolean isStaminaExhausted = false; // "Tired" state lock
 
     public boolean onGround = false;
 
@@ -84,19 +85,26 @@ public class Player {
         }
         boolean isMoving = left || right;
 
-        if (sprinting && isMoving && stamina > 0) {
+        if (sprinting && isMoving && stamina > 0 && !isStaminaExhausted) {
             currentSpeed = SPRINT_SPEED;
-            stamina -= 1.0f; // Consume stamina
-            if (stamina < 0) {
+            stamina -= 0.6f; // Consume stamina (slower than before)
+            if (stamina <= 0) {
                 stamina = 0;
                 sprinting = false;
+                isStaminaExhausted = true; // Lock sprinting
             }
         } else {
             // Recharge stamina
             if (stamina < maxStamina) {
                 stamina += 0.5f;
                 if (stamina > maxStamina) stamina = maxStamina;
+                
+                // Unlock sprinting after 30% recharge
+                if (isStaminaExhausted && stamina >= maxStamina * 0.3f) {
+                    isStaminaExhausted = false;
+                }
             }
+            if (isStaminaExhausted) sprinting = false; // Force stop if exhausted
         }
 
         if (left)  vx -= currentSpeed;
