@@ -121,9 +121,6 @@ public class Player {
         if (sprinting && Math.abs(vx) > 0.5) {
             foodDrain += 0.002f; 
         }
-        if (jump && onGround) { 
-            foodDrain += 0.05f; 
-        }
         
         foodExhaustion += foodDrain;
         if (foodExhaustion >= 1.0f) {
@@ -159,10 +156,12 @@ public class Player {
                     vy = JUMP_VY;
                     onGround = false;
                     jumpReleased = false;
+                    foodExhaustion += 0.15f; // Jump cost
                 } else if (wingsEquipped && !hasUsedDoubleJump) {
                     vy = JUMP_VY * 0.95; // Second jump
                     hasUsedDoubleJump = true;
                     jumpReleased = false;
+                    foodExhaustion += 0.10f; // Double jump cost
                     // Add a tiny flash or effect later if needed
                 }
             }
