@@ -39,7 +39,7 @@ public class MainMenuPanel extends JPanel {
 
         add(centerPanel, BorderLayout.CENTER);
 
-        JLabel aboutLabel = new JLabel("Hakkında: Zomtopia Demo v2.0");
+        JLabel aboutLabel = new JLabel("Hakkında: Zomtopia Demo v2.1.0-Mobile");
         aboutLabel.setForeground(Color.WHITE);
         aboutLabel.setFont(new Font("Arial", Font.BOLD, 14));
         aboutLabel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));

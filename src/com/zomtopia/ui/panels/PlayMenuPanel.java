@@ -9,16 +9,12 @@ import com.zomtopia.audio.AudioManager;
 import com.zomtopia.ui.components.MenuButton;
 
 public class PlayMenuPanel extends JPanel {
-    private GameApp gameApp;
     private Image backgroundImage;
-    private Image characterImage;
 
     public PlayMenuPanel(GameApp gameApp) {
-        this.gameApp = gameApp;
         setLayout(new BorderLayout());
 
         backgroundImage = ResourceManager.loadImage("play_menu_bg.png");
-        characterImage = ResourceManager.loadImage("character.png");
 
         JPanel centerPanel = new JPanel();
         centerPanel.setOpaque(false);
@@ -39,12 +35,6 @@ public class PlayMenuPanel extends JPanel {
         inputPanel.add(nameLabel);
         inputPanel.add(nameField);
 
-        JLabel characterPreview = new JLabel();
-        if (characterImage != null) {
-            Image scaledImage = characterImage.getScaledInstance(140, 140, Image.SCALE_SMOOTH);
-            characterPreview.setIcon(new ImageIcon(scaledImage));
-        }
-        characterPreview.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         JPanel buttonPanel = new JPanel();
         buttonPanel.setOpaque(false);
@@ -78,11 +68,9 @@ public class PlayMenuPanel extends JPanel {
 
         centerPanel.add(Box.createVerticalStrut(30));
         centerPanel.add(titleLabel);
-        centerPanel.add(Box.createVerticalStrut(15));
+        centerPanel.add(Box.createVerticalStrut(30));
         centerPanel.add(inputPanel);
-        centerPanel.add(Box.createVerticalStrut(10));
-        centerPanel.add(characterPreview);
-        centerPanel.add(Box.createVerticalStrut(15));
+        centerPanel.add(Box.createVerticalStrut(40));
         centerPanel.add(buttonPanel);
 
         add(centerPanel, BorderLayout.CENTER);
