@@ -57,6 +57,10 @@ public class Player {
     // d=15 -> 6.0
     // d=20 -> 8.5
 
+    // Jump tracking
+    private boolean hasUsedDoubleJump = false;
+    private boolean jumpReleased = true;
+
     // Input flags (set by GamePanel)
     public boolean left, right, jump, sprinting, crouchInput;
     public boolean crouching;
@@ -141,9 +145,29 @@ public class Player {
         }
 
         // Jump
-        if (jump && onGround) {
-            vy = JUMP_VY;
-            onGround = false;
+        boolean wingsEquipped = (inventory.getEquipment()[5] != null && 
+                                 inventory.getEquipment()[5].tile == com.zomtopia.game.world.Tile.WINGS);
+
+        if (onGround) {
+            hasUsedDoubleJump = false;
+            if (!jump) jumpReleased = true;
+        }
+
+        if (jump) {
+            if (jumpReleased) {
+                if (onGround) {
+                    vy = JUMP_VY;
+                    onGround = false;
+                    jumpReleased = false;
+                } else if (wingsEquipped && !hasUsedDoubleJump) {
+                    vy = JUMP_VY * 0.95; // Second jump
+                    hasUsedDoubleJump = true;
+                    jumpReleased = false;
+                    // Add a tiny flash or effect later if needed
+                }
+            }
+        } else {
+            jumpReleased = true;
         }
 
         // Start fall tracking when we leave ground.
