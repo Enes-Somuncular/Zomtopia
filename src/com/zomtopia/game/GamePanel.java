@@ -780,9 +780,8 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
 
             if (isHalf) {
                 Shape oldClip = g2.getClip();
-                // For food bar moving from right, maybe clip from right side?
-                // Actually, let's keep it simple: clip left half.
-                g2.setClip(new Rectangle(fx, heartY, heartSize / 2, heartSize));
+                // User wants left side to decrease first, so we fill the RIGHT half for a half-food icon.
+                g2.setClip(new Rectangle(fx + heartSize / 2, heartY, heartSize / 2, heartSize));
                 g2.setColor(new Color(220, 140, 40, 200));
                 g2.fillRoundRect(fx, heartY, heartSize, heartSize, 4, 4);
                 g2.setClip(oldClip);
