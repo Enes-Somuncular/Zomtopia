@@ -77,7 +77,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     private boolean isInRangeBreak, isInRangePlace;
 
     public GamePanel() {
-        setPreferredSize(new Dimension(800, 600));
+        setPreferredSize(new Dimension(800, 450));
 
         world = new World();
         new WorldGenerator(System.currentTimeMillis()).generate(world);
@@ -93,7 +93,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             }
         }
 
-        camera = new Camera(800, 600);
+        camera = new Camera(800, 450);
         camera.follow(player.x, player.y);
 
         addKeyListener(this);
