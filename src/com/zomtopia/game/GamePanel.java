@@ -1632,6 +1632,18 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             }
             inventoryOpen = !inventoryOpen;
         }
+        if (e.getKeyCode() == KeyEvent.VK_Q) {
+            if (inventoryOpen || escapeMenuOpen || deathMenuOpen) return;
+            com.zomtopia.game.inventory.ItemStack stack = player.getInventory().getStack(selectedSlot);
+            if (stack != null && stack.tile != com.zomtopia.game.world.Tile.AIR) {
+                droppedItems.add(new ItemEntity(getDropX(), getDropY(), stack.tile, stack.isBackground, 1));
+                stack.amount--;
+                if (stack.amount <= 0) {
+                    player.getInventory().setStack(selectedSlot, null);
+                }
+                repaint();
+            }
+        }
     }
     @Override public void keyReleased(KeyEvent e) { player.handleKeyRelease(e.getKeyCode()); }
     @Override public void keyTyped(KeyEvent e) {}
