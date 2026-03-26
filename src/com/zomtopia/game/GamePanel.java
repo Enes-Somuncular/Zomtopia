@@ -1234,28 +1234,43 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                 Inventory inv = player.getInventory();
 
                 // Right-click while inventory is open should not start a drag that removes items.
-                // For wearables: auto-equip directly.
-                if (SwingUtilities.isRightMouseButton(e) && slot < 100) {
-                    ItemStack stack = inv.getSlots()[slot];
-                    if (stack != null && stack.tile != Tile.AIR && stack.tile.category != Tile.Category.BLOCK) {
-                        Tile.Category[] cats = {
-                            Tile.Category.HAT,
-                            Tile.Category.MASK,
-                            Tile.Category.SHIRT,
-                            Tile.Category.PANTS,
-                            Tile.Category.SHOES,
-                            Tile.Category.BACK
-                        };
-                        int eqIdx = -1;
-                        for (int i = 0; i < cats.length; i++) {
-                            if (stack.tile.category == cats[i]) { eqIdx = i; break; }
+                if (SwingUtilities.isRightMouseButton(e)) {
+                    if (slot < 100) { // Auto-equip from inventory to equipment
+                        ItemStack stack = inv.getSlots()[slot];
+                        if (stack != null && stack.tile != Tile.AIR && stack.tile.category != Tile.Category.BLOCK) {
+                            Tile.Category[] cats = {
+                                Tile.Category.HAT,
+                                Tile.Category.MASK,
+                                Tile.Category.SHIRT,
+                                Tile.Category.PANTS,
+                                Tile.Category.SHOES,
+                                Tile.Category.BACK
+                            };
+                            int eqIdx = -1;
+                            for (int i = 0; i < cats.length; i++) {
+                                if (stack.tile.category == cats[i]) {
+                                    eqIdx = i;
+                                    break;
+                                }
+                            }
+                            if (eqIdx != -1) {
+                                ItemStack current = inv.getEquipment()[eqIdx];
+                                if (current == null || current.tile == Tile.AIR) {
+                                    inv.getEquipment()[eqIdx] = new ItemStack(stack.tile, 1, false);
+                                    stack.amount -= 1;
+                                    if (stack.amount <= 0) inv.getSlots()[slot] = null;
+                                    repaint();
+                                    return;
+                                }
+                            }
                         }
-                        if (eqIdx != -1) {
-                            ItemStack current = inv.getEquipment()[eqIdx];
-                            if (current == null || current.tile == Tile.AIR) {
-                                inv.getEquipment()[eqIdx] = new ItemStack(stack.tile, 1, false);
-                                stack.amount -= 1;
-                                if (stack.amount <= 0) inv.getSlots()[slot] = null;
+                    } else { // Auto-unequip from equipment back to inventory
+                        int eqIdx = slot - 100;
+                        ItemStack stack = inv.getEquipment()[eqIdx];
+                        if (stack != null && stack.tile != Tile.AIR) {
+                            if (inv.addItem(stack.tile, stack.amount, stack.isBackground)) {
+                                inv.getEquipment()[eqIdx] = null;
+                                repaint();
                                 return;
                             }
                         }
