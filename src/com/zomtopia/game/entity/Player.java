@@ -245,6 +245,7 @@ public class Player {
         healthHalf = Math.max(0, healthHalf - damageHalf);
         if (healthHalf < before) {
             damageFlash = 1f;
+            com.zomtopia.audio.AudioManager.getInstance().playDamageSound();
         }
     }
 

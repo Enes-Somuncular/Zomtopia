@@ -549,7 +549,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         g2.setColor(new Color(0, 0, 0, 150));
         g2.fillRect(0, 0, w, h);
 
-        int menuW = 260, menuH = 320;
+        int menuW = 260, menuH = 380;
         int menuX = (w - menuW) / 2;
         int menuY = (h - menuH) / 2;
 
@@ -564,7 +564,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         String title = "MENÜ";
         g2.drawString(title, menuX + (menuW - g2.getFontMetrics().stringWidth(title))/2, menuY + 45);
 
-        String[] buttons = {"DEVAM ET", "KAYDET", "YÜKLE", "KAYDET VE ÇIK"};
+        String[] buttons = {"DEVAM ET", "KAYDET", "YÜKLE", "MENÜYE DÖN", "KAYDET VE ÇIK"};
         for (int i = 0; i < buttons.length; i++) {
             int bx = menuX + 30;
             int by = menuY + 70 + i * 60;
@@ -1336,12 +1336,12 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
 
         if (escapeMenuOpen) {
             int mx = e.getX(), my = e.getY();
-            int w = 800, h = 600;
-            int menuW = 260, menuH = 320;
+            int w = getWidth(), h = getHeight();
+            int menuW = 260, menuH = 380;
             int menuX = (w - menuW) / 2;
             int menuY = (h - menuH) / 2;
 
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < 5; i++) {
                 int bx = menuX + 30;
                 int by = menuY + 70 + i * 60;
                 int bw = menuW - 60;
@@ -1351,6 +1351,11 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                     if (i == 1) SaveManager.saveGame(world, player);
                     if (i == 2) SaveManager.loadGame(world, player);
                     if (i == 3) {
+                        SaveManager.saveGame(world, player);
+                        Window window = SwingUtilities.getWindowAncestor(this);
+                        if (window != null) window.dispose();
+                    }
+                    if (i == 4) {
                         SaveManager.saveGame(world, player);
                         System.exit(0);
                     }

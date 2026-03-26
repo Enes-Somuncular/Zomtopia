@@ -17,8 +17,9 @@ public class AudioManager {
     private final Map<String, Boolean> channelEnabled = new HashMap<>();
     private final Map<String, Float> channelVolume = new HashMap<>();
 
-    // Cached menu click clip
+    // Cached clips
     private Clip menuClickClip;
+    private Clip damageClip;
 
     private AudioManager() {
         // Load audio settings from persistent SettingsManager
@@ -31,6 +32,7 @@ public class AudioManager {
         channelVolume.put("menu", SettingsManager.getChannelVolume("menu", 0.8f));
 
         loadMenuClick();
+        loadDamageSound();
     }
 
     public static AudioManager getInstance() {
@@ -54,6 +56,22 @@ public class AudioManager {
         }
     }
 
+    /** Loads the damage sound from res/sounds/damage.wav */
+    private void loadDamageSound() {
+        try {
+            File f = new File("res/sounds/damage.wav");
+            if (!f.exists()) f = new File("../res/sounds/damage.wav");
+            if (f.exists()) {
+                AudioInputStream ais = AudioSystem.getAudioInputStream(f);
+                damageClip = AudioSystem.getClip();
+                damageClip.open(ais);
+                setClipVolume(damageClip, channelVolume.get("sfx"));
+            }
+        } catch (Exception e) {
+            System.err.println("AudioManager: Could not load damage sound: " + e.getMessage());
+        }
+    }
+
     /** Plays the menu click sound if menu channel is enabled */
     public void playMenuClick() {
         if (!Boolean.TRUE.equals(channelEnabled.get("menu"))) return;
@@ -65,6 +83,17 @@ public class AudioManager {
         }
     }
 
+    /** Plays the damage sound if sfx channel is enabled */
+    public void playDamageSound() {
+        if (!Boolean.TRUE.equals(channelEnabled.get("sfx"))) return;
+        if (damageClip != null) {
+            damageClip.stop();
+            damageClip.setFramePosition(0);
+            setClipVolume(damageClip, channelVolume.get("sfx"));
+            damageClip.start();
+        }
+    }
+
     public void setChannelEnabled(String channel, boolean enabled) {
         channelEnabled.put(channel, enabled);
     }
@@ -73,6 +102,9 @@ public class AudioManager {
         channelVolume.put(channel, volume);
         if ("menu".equals(channel) && menuClickClip != null) {
             setClipVolume(menuClickClip, volume);
+        }
+        if ("sfx".equals(channel) && damageClip != null) {
+            setClipVolume(damageClip, volume);
         }
     }
 
