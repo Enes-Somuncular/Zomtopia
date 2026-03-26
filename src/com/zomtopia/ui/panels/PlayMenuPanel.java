@@ -6,6 +6,7 @@ import com.zomtopia.main.GameApp;
 import com.zomtopia.utils.ResourceManager;
 import com.zomtopia.utils.SettingsManager;
 import com.zomtopia.audio.AudioManager;
+import com.zomtopia.ui.components.MenuButton;
 
 public class PlayMenuPanel extends JPanel {
     private GameApp gameApp;
@@ -88,16 +89,9 @@ public class PlayMenuPanel extends JPanel {
     }
 
     private JButton createButton(String text) {
-        JButton button = new JButton(text);
-        button.setFont(new Font("Arial", Font.BOLD, 20));
-        button.setForeground(Color.WHITE);
-        button.setBackground(new Color(20, 20, 20, 160));
-        button.setFocusPainted(false);
-        button.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(Color.GRAY, 2),
-                BorderFactory.createEmptyBorder(10, 30, 10, 30)));
-        button.setOpaque(true);
-        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        MenuButton button = new MenuButton(text);
+        Dimension preferredSize = new Dimension(160, 45);
+        button.setPreferredSize(preferredSize);
         return button;
     }
 

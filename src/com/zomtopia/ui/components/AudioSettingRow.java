@@ -26,16 +26,7 @@ public class AudioSettingRow extends JPanel {
         gbc.anchor = GridBagConstraints.WEST;
 
         // Title button - fixed size, text NEVER changes
-        JButton toggleButton = new JButton(title);
-        toggleButton.setFont(new Font("Arial", Font.BOLD, 17));
-        toggleButton.setForeground(Color.WHITE);
-        toggleButton.setBackground(new Color(20, 20, 20, 160));
-        toggleButton.setFocusPainted(false);
-        toggleButton.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(Color.GRAY, 2),
-                BorderFactory.createEmptyBorder(8, 18, 8, 18)));
-        toggleButton.setOpaque(true);
-        toggleButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        MenuButton toggleButton = new MenuButton(title);
         toggleButton.setPreferredSize(new Dimension(170, 40));
         toggleButton.setMinimumSize(new Dimension(170, 40));
         toggleButton.setMaximumSize(new Dimension(170, 40));

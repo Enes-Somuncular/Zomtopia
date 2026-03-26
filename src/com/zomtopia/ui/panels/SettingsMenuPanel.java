@@ -5,6 +5,7 @@ import java.awt.*;
 import com.zomtopia.main.GameApp;
 import com.zomtopia.utils.ResourceManager;
 import com.zomtopia.ui.components.AudioSettingRow;
+import com.zomtopia.ui.components.MenuButton;
 import com.zomtopia.audio.AudioManager;
 
 public class SettingsMenuPanel extends JPanel {
@@ -28,21 +29,12 @@ public class SettingsMenuPanel extends JPanel {
         AudioSettingRow musicRow = new AudioSettingRow("Müzik", "music");
         AudioSettingRow menuSoundRow = new AudioSettingRow("Menü Sesi", "menu");
 
-        JButton backButton = new JButton("Geri");
-        backButton.setFont(new Font("Arial", Font.BOLD, 20));
-        backButton.setForeground(Color.WHITE);
-        backButton.setBackground(new Color(20, 20, 20, 160));
-        backButton.setFocusPainted(false);
-        backButton.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(Color.GRAY, 2),
-                BorderFactory.createEmptyBorder(10, 40, 10, 40)));
-        backButton.setOpaque(true);
+        MenuButton backButton = new MenuButton("Geri");
+        backButton.setAlignmentX(Component.CENTER_ALIGNMENT);
         Dimension fixedSize = new Dimension(250, 50);
         backButton.setPreferredSize(fixedSize);
         backButton.setMinimumSize(fixedSize);
         backButton.setMaximumSize(fixedSize);
-        backButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        backButton.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         backButton.addActionListener(e -> gameApp.showPanel("MainMenu"));
 
