@@ -38,13 +38,13 @@ public class SettingsMenuPanel extends JPanel {
 
         backButton.addActionListener(e -> gameApp.showPanel("MainMenu"));
 
-        centerPanel.add(Box.createVerticalStrut(50));
-        centerPanel.add(titleLabel);
         centerPanel.add(Box.createVerticalStrut(30));
+        centerPanel.add(titleLabel);
+        centerPanel.add(Box.createVerticalStrut(15));
         centerPanel.add(soundRow);
         centerPanel.add(musicRow);
         centerPanel.add(menuSoundRow);
-        centerPanel.add(Box.createVerticalStrut(30));
+        centerPanel.add(Box.createVerticalStrut(15));
         centerPanel.add(backButton);
 
         add(centerPanel, BorderLayout.CENTER);

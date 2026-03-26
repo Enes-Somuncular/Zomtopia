@@ -29,7 +29,7 @@ public class MainMenuPanel extends JPanel {
         settingsButton.addActionListener(e -> { AudioManager.getInstance().playMenuClick(); gameApp.showPanel("SettingsMenu"); });
         exitButton.addActionListener(e -> { AudioManager.getInstance().playMenuClick(); System.exit(0); });
 
-        centerPanel.add(Box.createVerticalStrut(200));
+        centerPanel.add(Box.createVerticalStrut(120));
         centerPanel.add(playButton);
         centerPanel.add(Box.createVerticalStrut(20));
         centerPanel.add(settingsButton);

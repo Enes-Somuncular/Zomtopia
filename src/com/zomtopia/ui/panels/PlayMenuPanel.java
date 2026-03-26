@@ -41,7 +41,7 @@ public class PlayMenuPanel extends JPanel {
 
         JLabel characterPreview = new JLabel();
         if (characterImage != null) {
-            Image scaledImage = characterImage.getScaledInstance(180, 180, Image.SCALE_SMOOTH);
+            Image scaledImage = characterImage.getScaledInstance(140, 140, Image.SCALE_SMOOTH);
             characterPreview.setIcon(new ImageIcon(scaledImage));
         }
         characterPreview.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -76,13 +76,13 @@ public class PlayMenuPanel extends JPanel {
         buttonPanel.add(backButton);
         buttonPanel.add(nextButton);
 
-        centerPanel.add(Box.createVerticalStrut(50));
+        centerPanel.add(Box.createVerticalStrut(30));
         centerPanel.add(titleLabel);
-        centerPanel.add(Box.createVerticalStrut(30));
+        centerPanel.add(Box.createVerticalStrut(15));
         centerPanel.add(inputPanel);
-        centerPanel.add(Box.createVerticalStrut(20));
+        centerPanel.add(Box.createVerticalStrut(10));
         centerPanel.add(characterPreview);
-        centerPanel.add(Box.createVerticalStrut(30));
+        centerPanel.add(Box.createVerticalStrut(15));
         centerPanel.add(buttonPanel);
 
         add(centerPanel, BorderLayout.CENTER);
