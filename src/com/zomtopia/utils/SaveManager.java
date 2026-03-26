@@ -19,6 +19,9 @@ public class SaveManager {
             out.writeDouble(player.y);
             out.writeInt(player.healthHalf);
             out.writeFloat(player.stamina);
+            out.writeInt(player.foodHalf);
+            // We need access to GamePanel's worldTimeSeconds or pass it as param. 
+            // For now, let's just save player state.
 
             // 2. Inventory Data
             Inventory inv = player.getInventory();
@@ -74,6 +77,11 @@ public class SaveManager {
             // Backward compatibility: older saves stored full hearts (0..10).
             player.healthHalf = loadedHealth <= 10 ? loadedHealth * 2 : loadedHealth;
             player.stamina = in.readFloat();
+            try {
+                player.foodHalf = in.readInt();
+            } catch (EOFException e) {
+                player.foodHalf = player.maxFoodHalf;
+            }
 
             // 2. Inventory Data
             Inventory inv = player.getInventory();

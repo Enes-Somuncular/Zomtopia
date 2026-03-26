@@ -35,8 +35,9 @@ public class Player {
     public int maxHealthHalf = 20;
     public float stamina = 100f;
     public float maxStamina = 100f;
-    public float foodHalf = 20f;
+    public int foodHalf = 20;
     public int maxFoodHalf = 20;
+    private float foodExhaustion = 0f; // Internal counter for sub-unit depletion
 
     public boolean onGround = false;
 
@@ -54,7 +55,6 @@ public class Player {
     // d=10 -> 2.5
     // d=15 -> 6.0
     // d=20 -> 8.5
-    private static final double FALL_START_BLOCKS = 5.0;
 
     // Input flags (set by GamePanel)
     public boolean left, right, jump, sprinting, crouchInput;
@@ -105,14 +105,19 @@ public class Player {
         if (Math.abs(vx) < 0.1) vx = 0;
 
         // Hunger depletion
-        float foodDrain = 0.0006f; // Constant drain
+        float foodDrain = 0.0006f; 
         if (sprinting && Math.abs(vx) > 0.5) {
-            foodDrain += 0.002f; // Extra drain for sprinting
+            foodDrain += 0.002f; 
         }
-        if (jump && onGround) { // Jumping cost handled once per jump
+        if (jump && onGround) { 
             foodDrain += 0.05f; 
         }
-        foodHalf = Math.max(0, foodHalf - foodDrain);
+        
+        foodExhaustion += foodDrain;
+        if (foodExhaustion >= 1.0f) {
+            foodHalf = Math.max(0, foodHalf - 1);
+            foodExhaustion -= 1.0f;
+        }
 
         // Starvation damage
         if (foodHalf <= 0) {
@@ -243,30 +248,27 @@ public class Player {
         double tile = World.TILE_SIZE;
         int dBlocks = (int) Math.floor(fallDistPx / tile);
 
-        if (dBlocks <= (int) FALL_START_BLOCKS) {
-            // d=5 -> 1 heart => 2 half-hearts
-            if (dBlocks < (int) FALL_START_BLOCKS) return 0;
-        }
-        if (dBlocks < (int) FALL_START_BLOCKS) return 0;
-
-        // Convert dBlocks to "hearts" using piecewise-linear interpolation between the points.
-        // Then convert hearts -> half-hearts.
-        double hearts;
-        if (dBlocks <= 10) {
-            hearts = lerp(1.0, 2.5, (dBlocks - 5) / 5.0);
-        } else if (dBlocks <= 15) {
-            hearts = lerp(2.5, 6.0, (dBlocks - 10) / 5.0);
+        // More realistic curve:
+        // 0-3 blocks: 0
+        // 4 blocks: 1 half-heart
+        // 5 blocks: 2 half-hearts (1 full heart)
+        // 12 blocks: 10 half-hearts (5 hearts)
+        // 20 blocks: 20 half-hearts (Fatal)
+        
+        if (dBlocks <= 3) return 0;
+        
+        double halfHearts;
+        if (dBlocks <= 5) {
+            halfHearts = lerp(1.0, 2.0, (dBlocks - 4) / 1.0);
+        } else if (dBlocks <= 12) {
+            halfHearts = lerp(2.0, 10.0, (dBlocks - 5) / 7.0);
         } else if (dBlocks <= 20) {
-            hearts = lerp(6.0, 8.5, (dBlocks - 15) / 5.0);
+            halfHearts = lerp(10.0, 20.0, (dBlocks - 12) / 8.0);
         } else {
-            // Extend using the last slope: 8.5 at 20 and slope = (8.5-6.0)/5 = 0.5 hearts per block.
-            hearts = 8.5 + 0.5 * (dBlocks - 20);
+            halfHearts = 20.0; // Fatal
         }
 
-        // Convert to half-hearts.
-        // Keep odd/even half-hearts so the HUD can display half-filled hearts.
-        int damageHalfRaw = (int) Math.floor(hearts * 2.0 + 1e-6);
-        return damageHalfRaw;
+        return (int) Math.floor(halfHearts + 1e-6);
     }
 
     public void handleKeyPress(int key) {
