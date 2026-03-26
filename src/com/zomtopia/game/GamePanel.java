@@ -38,6 +38,10 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     private boolean draggingFromHotbar = false;
     private int draggedHotbarIdx = -1;
 
+    // Time System
+    private float worldTimeSeconds = 0; // 0 to 600 (10 minutes)
+    private static final float DAY_CYCLE_SECONDS = 600f;
+
     // Input state
     private int mouseScreenX, mouseScreenY;
     private boolean leftHeld, rightHeld;
@@ -142,6 +146,9 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                         }
                     }
                 }
+
+                // Update world time. 16ms = 0.016s
+                worldTimeSeconds = (worldTimeSeconds + 0.0163f) % DAY_CYCLE_SECONDS;
             }
             repaint();
         });
@@ -355,8 +362,14 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         super.paintComponent(g);
         Graphics2D g2 = (Graphics2D) g;
 
-        // Sky gradient
-        GradientPaint sky = new GradientPaint(0, 0, new Color(100, 180, 240), 0, getHeight(), new Color(170, 220, 255));
+        // Dynamic Sky Color
+        float gameHour = (worldTimeSeconds / DAY_CYCLE_SECONDS) * 24f;
+        gameHour = (gameHour + 6f) % 24f; // Cycle starts at 6:00 AM
+
+        Color skyTop = getSkyColor(gameHour, true);
+        Color skyBottom = getSkyColor(gameHour, false);
+
+        GradientPaint sky = new GradientPaint(0, 0, skyTop, 0, getHeight(), skyBottom);
         g2.setPaint(sky);
         g2.fillRect(0, 0, getWidth(), getHeight());
 
@@ -807,6 +820,89 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         g2.drawString("Sol Tık (Basılı): Kır (Menzil: 3)", 16, 62);
         g2.drawString("Sağ Tık: Blok Yerleştir (Menzil: 4)", 16, 80);
         g2.drawString("Scroll / 1-5: Blok Seç", 16, 98);
+
+        drawTimeClock(g2);
+    }
+
+    private void drawTimeClock(Graphics2D g2) {
+        float gameHourTotal = (worldTimeSeconds / DAY_CYCLE_SECONDS) * 24f;
+        gameHourTotal = (gameHourTotal + 6f) % 24f;
+        int hours = (int) gameHourTotal;
+        int minutes = (int) ((gameHourTotal - hours) * 60);
+
+        String timeStr = String.format("%02d:%02d", hours, minutes);
+
+        int cw = 100, ch = 45;
+        int cx = getWidth() - cw - 20;
+        int cy = 20;
+
+        // Glass panel style
+        g2.setColor(new Color(0, 0, 0, 120));
+        g2.fillRoundRect(cx, cy, cw, ch, 10, 10);
+        g2.setColor(new Color(255, 255, 255, 40));
+        g2.setStroke(new BasicStroke(1.5f));
+        g2.drawRoundRect(cx, cy, cw, ch, 10, 10);
+
+        // Icon for Day/Night
+        boolean isDay = (hours >= 6 && hours < 18);
+        g2.setColor(isDay ? Color.YELLOW : new Color(180, 180, 255));
+        if (isDay) {
+            g2.fillOval(cx + 10, cy + 12, 12, 12);
+        } else {
+            g2.fillArc(cx + 10, cy + 12, 12, 12, 45, 270);
+        }
+
+        g2.setColor(Color.WHITE);
+        g2.setFont(new Font("Monospaced", Font.BOLD, 18));
+        g2.drawString(timeStr, cx + 32, cy + 28);
+        
+        g2.setFont(new Font("Arial", Font.BOLD, 10));
+        g2.setColor(new Color(255, 255, 255, 180));
+        g2.drawString(isDay ? "GÜNDÜZ" : "GECE", cx + 32, cy + 40);
+    }
+
+    private Color getSkyColor(float hour, boolean top) {
+        // Transition times
+        // 4-6: Sunrise
+        // 6-16: Day
+        // 16-19: Sunset
+        // 19-4: Night
+
+        Color dayTop = new Color(100, 180, 240);
+        Color dayBot = new Color(170, 220, 255);
+        Color nightTop = new Color(15, 15, 45);
+        Color nightBot = new Color(35, 30, 80);
+        Color sunsetTop = new Color(80, 50, 120);
+        Color sunsetBot = new Color(240, 100, 60);
+        Color sunriseTop = new Color(120, 160, 220);
+        Color sunriseBot = new Color(255, 200, 100);
+
+        if (hour >= 8 && hour < 16) {
+            return top ? dayTop : dayBot;
+        } else if (hour >= 16 && hour < 19) {
+            float p = (hour - 16) / 3f;
+            return lerpColor(top ? dayTop : dayBot, top ? sunsetTop : sunsetBot, p);
+        } else if (hour >= 19 && hour < 20) {
+            float p = (hour - 19) / 1f;
+            return lerpColor(top ? sunsetTop : sunsetBot, top ? nightTop : nightBot, p);
+        } else if (hour >= 20 || hour < 4) {
+            return top ? nightTop : nightBot;
+        } else if (hour >= 4 && hour < 6) {
+            float p = (hour - 4) / 2f;
+            return lerpColor(top ? nightTop : nightBot, top ? sunriseTop : sunriseBot, p);
+        } else if (hour >= 6 && hour < 8) {
+            float p = (hour - 6) / 2f;
+            return lerpColor(top ? sunriseTop : sunriseBot, top ? dayTop : dayBot, p);
+        }
+        return top ? dayTop : dayBot;
+    }
+
+    private Color lerpColor(Color c1, Color c2, float p) {
+        int r = (int) (c1.getRed() + (c2.getRed() - c1.getRed()) * p);
+        int g = (int) (c1.getGreen() + (c2.getGreen() - c1.getGreen()) * p);
+        int b = (int) (c1.getBlue() + (c2.getBlue() - c1.getBlue()) * p);
+        int a = (int) (c1.getAlpha() + (c2.getAlpha() - c1.getAlpha()) * p);
+        return new Color(r, g, b, a);
     }
 
     // Shared layout for the expanded inventory screen (render + hit testing).
