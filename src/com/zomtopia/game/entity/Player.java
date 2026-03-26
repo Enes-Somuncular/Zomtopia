@@ -35,6 +35,8 @@ public class Player {
     public int maxHealthHalf = 20;
     public float stamina = 100f;
     public float maxStamina = 100f;
+    public float foodHalf = 20f;
+    public int maxFoodHalf = 20;
 
     public boolean onGround = false;
 
@@ -101,6 +103,24 @@ public class Player {
         if (right) vx += currentSpeed;
         vx *= FRICTION;
         if (Math.abs(vx) < 0.1) vx = 0;
+
+        // Hunger depletion
+        float foodDrain = 0.0006f; // Constant drain
+        if (sprinting && Math.abs(vx) > 0.5) {
+            foodDrain += 0.002f; // Extra drain for sprinting
+        }
+        if (jump && onGround) { // Jumping cost handled once per jump
+            foodDrain += 0.05f; 
+        }
+        foodHalf = Math.max(0, foodHalf - foodDrain);
+
+        // Starvation damage
+        if (foodHalf <= 0) {
+            // Take 1 half-heart damage every 4 seconds (approx 250 ticks)
+            if (System.currentTimeMillis() % 4000 < 20) {
+                applyDamageHalf(1);
+            }
+        }
 
         // Jump
         if (jump && onGround) {
@@ -191,6 +211,7 @@ public class Player {
     public void resetForRespawn() {
         // Reset gameplay state after death menu "respawn".
         healthHalf = maxHealthHalf;
+        foodHalf = maxFoodHalf;
         damageFlash = 0f;
         vx = 0;
         vy = 0;

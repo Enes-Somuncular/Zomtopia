@@ -758,6 +758,40 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             g2.drawRoundRect(hx, heartY, heartSize, heartSize, 4, 4);
         }
 
+        // --- Food Bar (Symmetric to health bar) ---
+        int totalFoodIcons = Math.max(1, player.maxFoodHalf / 2);
+        int fullFood = (int) (player.foodHalf / 2);
+        int hasHalfFood = (int) (player.foodHalf % 2);
+
+        for (int i = 0; i < totalFoodIcons; i++) {
+            // Moving from right to left
+            int fx = barX + barWidth - (i + 1) * (heartSize + heartPadding);
+            
+            boolean isFull = i < fullFood;
+            boolean isHalf = (i == fullFood && hasHalfFood == 1);
+
+            if (isFull) {
+                g2.setColor(new Color(220, 140, 40, 200)); // Orange-ish food color
+            } else {
+                g2.setColor(new Color(60, 40, 20, 25));
+            }
+
+            g2.fillRoundRect(fx, heartY, heartSize, heartSize, 4, 4);
+
+            if (isHalf) {
+                Shape oldClip = g2.getClip();
+                // For food bar moving from right, maybe clip from right side?
+                // Actually, let's keep it simple: clip left half.
+                g2.setClip(new Rectangle(fx, heartY, heartSize / 2, heartSize));
+                g2.setColor(new Color(220, 140, 40, 200));
+                g2.fillRoundRect(fx, heartY, heartSize, heartSize, 4, 4);
+                g2.setClip(oldClip);
+            }
+
+            g2.setColor(new Color(255, 255, 255, isFull ? 90 : 55));
+            g2.drawRoundRect(fx, heartY, heartSize, heartSize, 4, 4);
+        }
+
         // Stamina bar
         int sBarH = 8;
         int sBarY = y - 18;
