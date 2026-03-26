@@ -1063,6 +1063,10 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             case DARK_MASK: return "SİYAH MASKE";
             case JEANS: return "JEAN";
             case SNEAKERS: return "AYAKKABI";
+            case WOODEN_PICKAXE: return "TAHTA KAZMA";
+            case WOODEN_AXE: return "TAHTA BALTA";
+            case WOODEN_SWORD: return "TAHTA KILIÇ";
+            case WOODEN_SHOVEL: return "TAHTA KÜREK";
             default: return tile.name();
         }
     }
