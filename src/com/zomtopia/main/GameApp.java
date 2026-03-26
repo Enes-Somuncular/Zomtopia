@@ -13,7 +13,7 @@ public class GameApp extends JFrame {
     
     public GameApp() {
         setTitle("Zomtopia");
-        setSize(800, 600);
+        setSize(800, 450);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setResizable(false);
