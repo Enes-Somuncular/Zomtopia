@@ -17,8 +17,8 @@ public class Player {
 
     public Inventory getInventory() { return inventory; }
 
-    public static final int W = 24;
-    public static final int H = 60;
+    public static final int W = 20;
+    public static final int H = 50;
 
     private static final double GRAVITY    = 0.5;
     private static final double MAX_VY     = 14;
@@ -153,23 +153,23 @@ public class Player {
         }
 
         // --- Crouching Logic ---
-        int targetH = crouchInput ? 30 : 60;
+        int targetH = crouchInput ? 25 : 50;
         
         // If trying to stand up, check if there's space
         if (!crouchInput && crouching) {
-            if (world.isRectBlocked(x, y - (60 - 30), W, 60)) {
-                targetH = 30; // Force stay crouched
+            if (world.isRectBlocked(x, y - (50 - 25), W, 50)) {
+                targetH = 25; // Force stay crouched
             }
         }
         
-        int oldH = crouching ? 30 : 60;
+        int oldH = crouching ? 25 : 50;
         int newH = targetH;
         
         // Adjust y to keep feet on ground when changing height
         if (newH != oldH) {
             y += (oldH - newH);
         }
-        crouching = (newH == 30);
+        crouching = (newH == 25);
         int h = newH;
 
         // Gravity
@@ -271,8 +271,8 @@ public class Player {
             halfHearts = lerp(1.0, 2.0, (dBlocks - 4) / 1.0);
         } else if (dBlocks <= 12) {
             halfHearts = lerp(2.0, 10.0, (dBlocks - 5) / 7.0);
-        } else if (dBlocks <= 20) {
-            halfHearts = lerp(10.0, 20.0, (dBlocks - 12) / 8.0);
+        } else if (dBlocks <= 18) {
+            halfHearts = lerp(10.0, 20.0, (dBlocks - 12) / 6.0);
         } else {
             halfHearts = 20.0; // Fatal
         }

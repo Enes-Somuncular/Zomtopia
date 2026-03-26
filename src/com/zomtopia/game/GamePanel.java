@@ -274,7 +274,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             Rectangle itemRect = new Rectangle((int) item.x, (int) item.y, ItemEntity.SIZE, ItemEntity.SIZE);
             Rectangle playerRect = new Rectangle((int) player.x, (int) player.y, Player.W, player.crouching ? 30 : Player.H);
 
-            if (itemRect.intersects(playerRect)) {
+            if (itemRect.intersects(playerRect) && item.pickupCooldown <= 0) {
                 if (player.getInventory().addItem(item.tile, item.amount, item.isBackground)) {
                     droppedItems.remove(item);
                 }
@@ -455,7 +455,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         int spx = camera.toScreenX((int) player.x);
         int spy = camera.toScreenY((int) player.y);
         int w = Player.W;
-        int h = player.crouching ? 30 : 60;
+        int h = player.crouching ? 25 : 50;
         boolean facingLeft = player.facingLeft;
         
         Inventory inv = player.getInventory();
@@ -464,9 +464,9 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         g2.setStroke(new BasicStroke(2.5f));
         
         int centerX = spx + w/2;
-        int headSize = 16;
-        int spineBottomY = spy + h - 14;
-        int armY = spy + headSize + 6;
+        int headSize = 14;
+        int spineBottomY = spy + h - 12;
+        int armY = spy + headSize + 4;
 
         // Back items (Wings etc) - Behind spine but in front of back arm maybe? No, behind everything for wings.
         drawEquip(g2, equip[5], centerX, armY, 0, false); // BACK
@@ -1636,7 +1636,11 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             if (inventoryOpen || escapeMenuOpen || deathMenuOpen) return;
             com.zomtopia.game.inventory.ItemStack stack = player.getInventory().getStack(selectedSlot);
             if (stack != null && stack.tile != com.zomtopia.game.world.Tile.AIR) {
-                droppedItems.add(new ItemEntity(getDropX(), getDropY(), stack.tile, stack.isBackground, 1));
+                ItemEntity item = new ItemEntity(getDropX(), getDropY(), stack.tile, stack.isBackground, 1);
+                item.vx = player.facingLeft ? -4.5 : 4.5;
+                item.vy = -3;
+                droppedItems.add(item);
+                
                 stack.amount--;
                 if (stack.amount <= 0) {
                     player.getInventory().setStack(selectedSlot, null);

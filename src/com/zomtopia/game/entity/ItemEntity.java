@@ -9,6 +9,7 @@ public class ItemEntity {
     public final Tile tile;
     public final boolean isBackground;
     public int amount;
+    public int pickupCooldown = 25; // Prevent immediate pickup
     
     public static final int SIZE = 16;
     private static final double GRAVITY  = 0.3;
@@ -33,6 +34,7 @@ public class ItemEntity {
     public void update(World world) {
         vy += GRAVITY;
         vx *= FRICTION;
+        if (pickupCooldown > 0) pickupCooldown--;
 
         x += vx;
         if (world.isRectBlocked(x, y, SIZE, SIZE)) {
