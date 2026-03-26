@@ -19,6 +19,12 @@ public class Inventory {
         addItem(Tile.DARK_MASK, 1, false);
         addItem(Tile.JEANS, 1, false);
         addItem(Tile.SNEAKERS, 1, false);
+        
+        // Initial tools
+        addItem(Tile.WOODEN_PICKAXE, 1, false);
+        addItem(Tile.WOODEN_AXE, 1, false);
+        addItem(Tile.WOODEN_SWORD, 1, false);
+        addItem(Tile.WOODEN_SHOVEL, 1, false);
     }
 
     public ItemStack[] getSlots() { return slots; }

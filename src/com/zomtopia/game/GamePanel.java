@@ -502,13 +502,18 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         g2.setColor(Color.BLACK);
         g2.drawLine(armX, armY, handX, handY);
         
-        // Held Item
         ItemStack held = inv.getStack(selectedSlot);
         if (held != null && held.tile != com.zomtopia.game.world.Tile.AIR) {
-            int itemSize = 12;
-            boolean isBg = held.isBackground;
-            g2.setColor(isBg ? held.tile.color.darker() : held.tile.color);
-            g2.fillRoundRect(handX - 6, handY - 6, itemSize, itemSize, 3, 3);
+            int itemSize = (held.tile.category == Tile.Category.TOOL) ? 18 : 12;
+            int hx = handX - itemSize/2;
+            int hy = handY - itemSize/2;
+            
+            if (held.tile.category == Tile.Category.BLOCK) {
+                g2.setColor(held.isBackground ? held.tile.color.darker() : held.tile.color);
+                g2.fillRoundRect(hx, hy, itemSize, itemSize, 3, 3);
+            } else {
+                drawInventoryDemoIcon(g2, held, hx, hy, itemSize);
+            }
         }
         
         // Legs & Pants/Shoes
@@ -1137,6 +1142,23 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                     new int[]{y + padding + inner/2, y + padding + padding, y + padding + inner/2},
                     3
                 );
+                break;
+            case TOOL:
+                g2.setColor(new Color(100, 65, 30)); // Handle
+                int hw = Math.max(2, inner/8);
+                g2.fillRect(x + padding + inner/2 - hw/2, y + padding + inner/3, hw, inner - inner/3);
+                
+                g2.setColor(base); // Head
+                if (tile == Tile.WOODEN_PICKAXE) {
+                    g2.fillArc(x + padding, y + padding, inner, inner/2, 0, 180);
+                } else if (tile == Tile.WOODEN_AXE) {
+                    g2.fillRoundRect(x + padding + inner/2, y + padding, inner/2, inner/2, 4, 4);
+                } else if (tile == Tile.WOODEN_SWORD) {
+                    g2.fillRect(x + padding + inner/2 - hw, y + padding + inner/3, hw*2, hw); // Guard
+                    g2.fillRect(x + padding + inner/2 - hw/2, y + padding, hw, inner/3 + 2); // Blade
+                } else if (tile == Tile.WOODEN_SHOVEL) {
+                    g2.fillOval(x + padding + inner/4, y + padding, inner/2, inner/2);
+                }
                 break;
             default:
                 // Fallback

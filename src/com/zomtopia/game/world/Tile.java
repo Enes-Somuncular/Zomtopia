@@ -17,9 +17,15 @@ public enum Tile {
     WINGS    (12, new Color(230, 230, 250),    false, Category.BACK),
     DARK_MASK(13, new Color(30, 30, 30),       false, Category.MASK),
     JEANS    (14, new Color(50, 80, 150),      false, Category.PANTS),
-    SNEAKERS (15, new Color(220, 220, 220),    false, Category.SHOES);
+    SNEAKERS (15, new Color(220, 220, 220),    false, Category.SHOES),
 
-    public enum Category { BLOCK, HAT, MASK, SHIRT, PANTS, SHOES, BACK }
+    // Tools
+    WOODEN_PICKAXE(20, new Color(139, 90, 43), false, Category.TOOL),
+    WOODEN_AXE    (21, new Color(139, 90, 43), false, Category.TOOL),
+    WOODEN_SWORD  (22, new Color(139, 90, 43), false, Category.TOOL),
+    WOODEN_SHOVEL (23, new Color(139, 90, 43), false, Category.TOOL);
+
+    public enum Category { BLOCK, HAT, MASK, SHIRT, PANTS, SHOES, BACK, TOOL }
 
     public final int id;
     public final Color color;
