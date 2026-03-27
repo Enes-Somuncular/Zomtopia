@@ -18,7 +18,7 @@ public class InventoryRenderer {
     public int detailX, detailY, detailW, detailH;
 
     private static final Color GLASS_BG = new Color(20, 20, 25, 230);
-    private static final Color GLASS_BORDER = new Color(255, 255, 255, 40);
+    private static final Color GLASS_BORDER = new Color(255, 255, 255, 30);
     private static final Color SLOT_BG = new Color(255, 255, 255, 15);
     private static final Color SLOT_BORDER = new Color(255, 255, 255, 25);
     private static final Color ACCENT_COLOR = new Color(100, 150, 255);
@@ -329,17 +329,18 @@ public class InventoryRenderer {
     }
 
     public void drawHotbar(Graphics2D g2, Inventory inv, int screenW, int screenH, int selectedSlot) {
-        int hbSlotSize = 48;
-        int hbPadding = 8;
+        int hbSlotSize = 42;
+        int hbPadding = 5;
         int totalW = 10 * (hbSlotSize + hbPadding) - hbPadding;
         int x0 = (screenW - totalW) / 2;
-        int y = screenH - hbSlotSize - 20;
+        int y = screenH - hbSlotSize - 18;
 
         // Hotbar Glass
-        g2.setColor(new Color(10, 10, 15, 180));
-        g2.fillRoundRect(x0 - 10, y - 10, totalW + 20, hbSlotSize + 20, 15, 15);
+        g2.setColor(new Color(10, 10, 15, 170));
+        g2.fillRoundRect(x0 - 8, y - 8, totalW + 16, hbSlotSize + 16, 12, 12);
         g2.setColor(GLASS_BORDER);
-        g2.drawRoundRect(x0 - 10, y - 10, totalW + 20, hbSlotSize + 20, 15, 15);
+        g2.setStroke(new BasicStroke(1.5f));
+        g2.drawRoundRect(x0 - 8, y - 8, totalW + 16, hbSlotSize + 16, 12, 12);
 
         for (int i = 0; i < 10; i++) {
             int sx = x0 + i * (hbSlotSize + hbPadding);
@@ -348,21 +349,21 @@ public class InventoryRenderer {
             ItemStack stack = inv.getSlots()[i];
             
             // Background
-            g2.setColor(sel ? new Color(255, 255, 255, 60) : SLOT_BG);
-            g2.fillRoundRect(sx, y, hbSlotSize, hbSlotSize, 12, 12);
+            g2.setColor(sel ? new Color(255, 255, 255, 50) : SLOT_BG);
+            g2.fillRoundRect(sx, y, hbSlotSize, hbSlotSize, 10, 10);
             
             // Border
             g2.setColor(sel ? ACCENT_COLOR : SLOT_BORDER);
-            g2.setStroke(new BasicStroke(sel ? 3f : 1.5f));
-            g2.drawRoundRect(sx, y, hbSlotSize, hbSlotSize, 12, 12);
+            g2.setStroke(new BasicStroke(sel ? 2.5f : 1f));
+            g2.drawRoundRect(sx, y, hbSlotSize, hbSlotSize, 10, 10);
             
             if (stack != null && stack.tile != Tile.AIR) {
-                drawItemIcon(g2, stack, sx + 8, y + 8, hbSlotSize - 16);
+                drawItemIcon(g2, stack, sx + 7, y + 7, hbSlotSize - 14);
                 if (stack.amount > 1) {
                     g2.setColor(Color.WHITE);
-                    g2.setFont(new Font("Arial", Font.BOLD, 12));
+                    g2.setFont(new Font("Arial", Font.BOLD, 11));
                     String amt = String.valueOf(stack.amount);
-                    g2.drawString(amt, sx + hbSlotSize - 16, y + hbSlotSize - 8);
+                    g2.drawString(amt, sx + hbSlotSize - 14, y + hbSlotSize - 6);
                 }
             }
         }

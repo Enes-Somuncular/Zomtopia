@@ -1179,7 +1179,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         }
 
         if (SwingUtilities.isLeftMouseButton(e))  { leftHeld  = false; resetBreak(); }
-        if (SwingUtilities.isRightMouseButton(e)) { /* No longer needed for placement */ }
+        if (SwingUtilities.isRightMouseButton(e)) { rightHeld = false; }
     }
     @Override public void mouseClicked(MouseEvent e) {}
     @Override public void mouseEntered(MouseEvent e) {}
