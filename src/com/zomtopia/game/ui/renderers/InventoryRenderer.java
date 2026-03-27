@@ -29,49 +29,24 @@ public class InventoryRenderer {
         invX = (screenW - invW) / 2;
         invY = (screenH - invH) / 2;
 
-        gridX = invX + 30;
-        gridY = invY + 80;
-        slotSize = 44;
-        slotPadding = 6;
+        previewX = invX + 30;
+        previewY = invY + 60;
+        previewW = 200;
+        previewH = 260;
 
-        previewX = invX + 540;
-        previewY = invY + 80;
-        previewW = 180;
-        previewH = 160;
-
-        eqX = previewX;
-        eqY = previewY + previewH + 40;
-        eqSlotSize = 40;
-        eqPadding = 8;
-        
-        craftX = invX + 540;
-        craftY = invY + 80;
+        craftX = invX + 30;
+        craftY = invY + 340;
         craftSlotSize = 44;
-        
-        // Let's reposition: Grid on left. Mid-right: Crafting & Equipment. Far right: Details.
-        // Revised layout:
-        gridX = invX + 25;
+
+        gridX = invX + 260;
         gridY = invY + 70;
-        
-        // Crafting Grid (2x2)
-        craftX = invX + 535;
-        craftY = invY + 70;
-        
-        // Equipment (2 columns)
-        eqX = invX + 535;
-        eqY = craftY + (craftSlotSize + slotPadding) * 2 + 30;
-        
-        // Preview Box (Moved to far right or center)
-        previewX = invX + 380;
-        previewY = invY + 70;
-        previewW = 140;
-        previewH = 200;
-        
-        // Detail panel at bottom or top
+        slotSize = 44;
+        slotPadding = 8;
+
         detailX = invX + 25;
-        detailY = invY + invH - 100;
+        detailY = invY + invH - 60;
         detailW = invW - 50;
-        detailH = 80;
+        detailH = 40;
     }
 
     public void drawInventory(Graphics2D g2, Inventory inv, int mouseX, int mouseY, Player player) {
@@ -93,33 +68,29 @@ public class InventoryRenderer {
         g2.setFont(new Font("Arial", Font.BOLD, 22));
         g2.drawString("ENVANTER & ÜRETİM", invX + 25, invY + 45);
 
-        // 1. Draw Main Slots
-        drawSlots(g2, inv.getSlots(), gridX, gridY, 10, 4, mouseX, mouseY);
+        // 1. Draw Character Preview & Equipment Slots
+        drawPreview(g2, player);
+        drawEquipmentSlots(g2, inv.getEquipment(), mouseX, mouseY);
         
-        // 2. Draw Crafting Grid (2x2)
-        g2.setColor(Color.GRAY);
+        // 2. Draw Crafting Grid (Below Preview)
+        g2.setColor(new Color(255, 255, 255, 100));
         g2.setFont(new Font("Arial", Font.BOLD, 12));
-        g2.drawString("ÜRETİM", craftX, craftY - 10);
+        g2.drawString("ÜRETİM MASASI", craftX, craftY - 10);
         drawSlots(g2, inv.getCraftingGrid(), craftX, craftY, 2, 2, mouseX, mouseY, 200);
 
-        // Arrow for crafting
+        // Arrow and Result
         g2.setColor(Color.WHITE);
         g2.setFont(new Font("Arial", Font.BOLD, 20));
         g2.drawString("→", craftX + (craftSlotSize + slotPadding) * 2 + 5, craftY + craftSlotSize);
-        
-        // Result Slot
-        int resX = craftX + (craftSlotSize + slotPadding) * 2 + 35;
-        int resY = craftY + craftSlotSize / 2;
-        drawSlot(g2, inv.getCraftingResult(), resX, resY, craftSlotSize, mouseX, mouseY, 300);
+        drawSlot(g2, inv.getCraftingResult(), craftX + (craftSlotSize + slotPadding) * 2 + 35, craftY + craftSlotSize/2, craftSlotSize, mouseX, mouseY, 300);
 
-        // 3. Draw Equipment
-        g2.drawString("EKİPMAN", eqX, eqY - 10);
-        drawSlots(g2, inv.getEquipment(), eqX, eqY, 2, 3, mouseX, mouseY, 100);
+        // 3. Draw Main Inventory (Right Side, 8x5)
+        g2.setColor(new Color(255, 255, 255, 100));
+        g2.setFont(new Font("Arial", Font.BOLD, 12));
+        g2.drawString("HAZİNE", gridX, gridY - 10);
+        drawSlots(g2, inv.getSlots(), gridX, gridY, 8, 5, mouseX, mouseY);
 
-        // 4. Draw Character Preview
-        drawPreview(g2, player);
-
-        // 5. Draw Info Panel for hovered item
+        // 4. Detail Panel
         int hoveredIdx = getSlotAt(mouseX, mouseY);
         if (hoveredIdx != -1) {
             ItemStack hovered = null;
@@ -127,11 +98,26 @@ public class InventoryRenderer {
             else if (hoveredIdx < 200) hovered = inv.getEquipment()[hoveredIdx - 100];
             else if (hoveredIdx < 300) hovered = inv.getCraftingGrid()[hoveredIdx - 200];
             else if (hoveredIdx == 300) hovered = inv.getCraftingResult();
-            
-            if (hovered != null && hovered.tile != Tile.AIR) {
-                drawDetailPanel(g2, hovered);
-            }
+            if (hovered != null && hovered.tile != Tile.AIR) drawDetailPanel(g2, hovered);
         }
+    }
+
+    private void drawEquipmentSlots(Graphics2D g2, ItemStack[] equip, int mx, int my) {
+        int[][] pos = getEquipPositions();
+        for (int i = 0; i < 6; i++) {
+            drawSlot(g2, equip[i], pos[i][0], pos[i][1], slotSize, mx, my, 100 + i);
+        }
+    }
+
+    private int[][] getEquipPositions() {
+        return new int[][]{
+            {previewX + 70, previewY + 10},  // 100: Hat
+            {previewX + 115, previewY + 45}, // 101: Mask
+            {previewX + 70, previewY + 80},  // 102: Shirt
+            {previewX + 70, previewY + 140}, // 103: Pants
+            {previewX + 70, previewY + 200}, // 104: Shoes
+            {previewX + 20, previewY + 80}   // 105: Back
+        };
     }
 
     private void drawSlots(Graphics2D g2, ItemStack[] stacks, int x, int y, int cols, int rows, int mx, int my) {
@@ -222,51 +208,49 @@ public class InventoryRenderer {
     }
 
     private void drawPreview(Graphics2D g2, Player player) {
-        g2.setColor(SLOT_BG);
-        g2.fillRoundRect(previewX, previewY, previewW, previewH, 15, 15);
+        // Semi-transparent box for stickman
+        g2.setColor(new Color(255, 255, 255, 10));
+        g2.fillRoundRect(previewX, previewY - 5, previewW, previewH + 5, 20, 20);
         g2.setColor(SLOT_BORDER);
-        g2.drawRoundRect(previewX, previewY, previewW, previewH, 15, 15);
+        g2.drawRoundRect(previewX, previewY - 5, previewW, previewH + 5, 20, 20);
         
-        g2.setColor(Color.WHITE);
-        g2.setFont(new Font("Arial", Font.BOLD, 12));
-        g2.drawString("KARAKTER", previewX + 10, previewY + 20);
+        // Centers for drawing stickman segments to align with slots
+        int cx = previewX + 70 + slotSize/2;
+        int cyHat = previewY + 10 + slotSize/2;
+        int cyShirt = previewY + 80 + slotSize/2;
+        int cyPants = previewY + 140 + slotSize/2;
+        int cyShoes = previewY + 200 + slotSize/2;
         
-        // Detailed Stickman Preview
-        int cx = previewX + previewW / 2;
-        int cy = previewY + previewH / 2 + 15;
-        int headSize = 24;
-        int spineLen = 60;
+        g2.setColor(new Color(255, 255, 255, 60));
+        g2.setStroke(new BasicStroke(3f));
         
-        ItemStack[] equip = player.getInventory().getEquipment();
-        
-        // Back
-        drawEquippedItem(g2, equip[5], cx, cy - spineLen + 20, 0, false);
-        
-        g2.setColor(Color.WHITE);
-        g2.setStroke(new BasicStroke(4f));
-        // Head
-        g2.drawOval(cx - headSize/2, cy - spineLen - headSize, headSize, headSize);
-        // Gear
-        drawEquippedItem(g2, equip[0], cx, cy - spineLen - headSize, headSize, true); // Hat
-        drawEquippedItem(g2, equip[1], cx, cy - spineLen - headSize, headSize, true); // Mask
-        
+        // Head circle
+        g2.drawOval(cx - 15, cyHat - 15, 30, 30);
         // Spine
-        g2.setColor(Color.WHITE);
-        g2.drawLine(cx, cy - spineLen, cx, cy);
-        drawEquippedItem(g2, equip[2], cx, cy - spineLen, spineLen, false); // Shirt
-        
+        g2.drawLine(cx, cyHat + 15, cx, cyShirt + 15);
         // Arms
-        g2.drawLine(cx, cy - spineLen + 10, cx - 25, cy - spineLen + 30);
-        g2.drawLine(cx, cy - spineLen + 10, cx + 25, cy - spineLen + 30);
-        
+        g2.drawLine(cx, cyHat + 25, cx - 25, cyShirt);
+        g2.drawLine(cx, cyHat + 25, cx + 25, cyShirt);
         // Legs
-        g2.drawLine(cx, cy, cx - 20, cy + 40);
-        g2.drawLine(cx, cy, cx + 20, cy + 40);
-        drawEquippedItem(g2, equip[3], cx, cy, 30, false); // Pants
-        drawEquippedItem(g2, equip[4], cx - 20, cy + 40, 0, false);
-        drawEquippedItem(g2, equip[4], cx + 20, cy + 40, 0, false);
-        
+        g2.drawLine(cx, cyShirt + 15, cx - 15, cyPants + 15);
+        g2.drawLine(cx, cyShirt + 15, cx + 15, cyPants + 15);
+        // Feet
+        g2.drawLine(cx - 15, cyPants + 15, cx - 15, cyShoes);
+        g2.drawLine(cx + 15, cyPants + 15, cx + 15, cyShoes);
+
         g2.setStroke(new BasicStroke(1f));
+        
+        // The actual equipment visual representation (not just slots)
+        // is handled in drawEquippedItem called from GamePanel, 
+        // but for preview we want the items drawn on the stickman.
+        ItemStack[] equip = player.getInventory().getEquipment();
+        drawEquippedItem(g2, equip[5], cx, cyShirt, 0, false); // Back
+        drawEquippedItem(g2, equip[0], cx, cyHat - 10, 14, true); // Hat
+        drawEquippedItem(g2, equip[1], cx, cyHat, 14, true); // Mask
+        drawEquippedItem(g2, equip[2], cx, cyShirt - 15, 30, false); // Shirt
+        drawEquippedItem(g2, equip[3], cx, cyShirt + 15, 30, false); // Pants
+        drawEquippedItem(g2, equip[4], cx - 15, cyShoes, 10, false); // Shoes L
+        drawEquippedItem(g2, equip[4], cx + 15, cyShoes, 10, false); // Shoes R
     }
 
     private void drawDetailPanel(Graphics2D g2, ItemStack stack) {
@@ -293,25 +277,24 @@ public class InventoryRenderer {
     }
 
     public int getSlotAt(int mx, int my) {
-        // Main Grid (0-39)
+        // 1. Main Inventory (0-39) -> 8 cols x 5 rows
         for (int i = 0; i < 40; i++) {
-            int r = i / 10;
-            int c = i % 10;
+            int r = i / 8;
+            int c = i % 8;
             int sx = gridX + c * (slotSize + slotPadding);
             int sy = gridY + r * (slotSize + slotPadding);
             if (mx >= sx && mx <= sx + slotSize && my >= sy && my <= sy + slotSize) return i;
         }
         
-        // Equipment (100-105)
+        // 2. Equipment (100-105)
+        int[][] equipPos = getEquipPositions();
         for (int i = 0; i < 6; i++) {
-            int r = i / 2;
-            int c = i % 2;
-            int sx = eqX + c * (slotSize + slotPadding);
-            int sy = eqY + r * (slotSize + slotPadding);
+            int sx = equipPos[i][0];
+            int sy = equipPos[i][1];
             if (mx >= sx && mx <= sx + slotSize && my >= sy && my <= sy + slotSize) return 100 + i;
         }
 
-        // Crafting Grid (200-203)
+        // 3. Crafting Grid (200-203)
         for (int i = 0; i < 4; i++) {
             int r = i / 2;
             int c = i % 2;
@@ -320,7 +303,7 @@ public class InventoryRenderer {
             if (mx >= sx && mx <= sx + slotSize && my >= sy && my <= sy + slotSize) return 200 + i;
         }
 
-        // Crafting Result (300)
+        // 4. Crafting Result (300)
         int resX = craftX + (craftSlotSize + slotPadding) * 2 + 35;
         int resY = craftY + craftSlotSize / 2;
         if (mx >= resX && mx <= resX + slotSize && my >= resY && my <= resY + slotSize) return 300;
