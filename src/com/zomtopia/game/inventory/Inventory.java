@@ -5,11 +5,15 @@ import com.zomtopia.game.world.Tile;
 public class Inventory {
     private final ItemStack[] slots;
     private final ItemStack[] equipment;
+    private final ItemStack[] craftingGrid;
+    private ItemStack craftingResult;
     public static final int SIZE = 40;
 
     public Inventory() {
         this.slots = new ItemStack[40];
         this.equipment = new ItemStack[6];
+        this.craftingGrid = new ItemStack[4];
+        this.craftingResult = null;
         
         // Demo items for testing
         addItem(Tile.DIRT, 64, false);
@@ -29,6 +33,9 @@ public class Inventory {
 
     public ItemStack[] getSlots() { return slots; }
     public ItemStack[] getEquipment() { return equipment; }
+    public ItemStack[] getCraftingGrid() { return craftingGrid; }
+    public ItemStack getCraftingResult() { return craftingResult; }
+    public void setCraftingResult(ItemStack stack) { this.craftingResult = stack; }
 
     public boolean addItem(Tile tile, int count, boolean isBackground) {
         if (tile == Tile.AIR || tile == Tile.BEDROCK) return false;
@@ -82,5 +89,20 @@ public class Inventory {
         if (index >= 0 && index < SIZE) {
             slots[index] = stack;
         }
+    }
+
+    public void sort() {
+        java.util.Arrays.sort(slots, (a, b) -> {
+            if (a == null && b == null) return 0;
+            if (a == null) return 1;
+            if (b == null) return -1;
+            
+            // Sort by category first
+            int catComp = a.tile.category.compareTo(b.tile.category);
+            if (catComp != 0) return catComp;
+            
+            // Then by name
+            return a.tile.name().compareTo(b.tile.name());
+        });
     }
 }

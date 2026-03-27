@@ -7,6 +7,8 @@ import com.zomtopia.game.world.World;
 import com.zomtopia.game.world.WorldGenerator;
 import com.zomtopia.game.inventory.Inventory;
 import com.zomtopia.game.inventory.ItemStack;
+import com.zomtopia.game.inventory.CraftingManager;
+import com.zomtopia.game.ui.renderers.InventoryRenderer;
 
 import javax.swing.*;
 import java.awt.*;
@@ -37,6 +39,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     private ItemStack draggedStack = null;
     private boolean draggingFromHotbar = false;
     private int draggedHotbarIdx = -1;
+    private final InventoryRenderer inventoryRenderer = new InventoryRenderer();
 
     // Time System
     private float worldTimeSeconds = 0; // 0 to 600 (10 minutes)
@@ -149,6 +152,9 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
 
                 // Update world time. 16ms = 0.016s
                 worldTimeSeconds = (worldTimeSeconds + 0.0163f) % DAY_CYCLE_SECONDS;
+                
+                // Update UI layout screen size changes (simplified)
+                inventoryRenderer.updateLayout(getWidth(), getHeight());
             }
             repaint();
         });
@@ -469,22 +475,22 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         int armY = spy + headSize + 4;
 
         // Back items (Wings etc) - Behind spine but in front of back arm maybe? No, behind everything for wings.
-        drawEquip(g2, equip[5], centerX, armY, 0, false); // BACK
+        inventoryRenderer.drawEquippedItem(g2, equip[5], centerX, armY, 0, false); // BACK
 
         g2.setColor(Color.BLACK);
         
         // Head
         g2.drawOval(centerX - headSize/2, spy, headSize, headSize);
         // Hat
-        drawEquip(g2, equip[0], centerX, spy, headSize, true); // HAT
+        inventoryRenderer.drawEquippedItem(g2, equip[0], centerX, spy, headSize, true); // HAT
         // Mask
-        drawEquip(g2, equip[1], centerX, spy, headSize, true); // MASK
+        inventoryRenderer.drawEquippedItem(g2, equip[1], centerX, spy, headSize, true); // MASK
 
         // Body (Spine)
         g2.setColor(Color.BLACK);
         g2.drawLine(centerX, spy + headSize, centerX, spineBottomY);
         // Shirt
-        drawEquip(g2, equip[2], centerX, spy + headSize, (spineBottomY - (spy + headSize)), false); // SHIRT
+        inventoryRenderer.drawEquippedItem(g2, equip[2], centerX, spy + headSize, (spineBottomY - (spy + headSize)), false); // SHIRT
 
         // --- Arms & Held Item ---
         int armX = centerX;
@@ -512,7 +518,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                 g2.setColor(held.isBackground ? held.tile.color.darker() : held.tile.color);
                 g2.fillRoundRect(hx, hy, itemSize, itemSize, 3, 3);
             } else {
-                drawInventoryDemoIcon(g2, held, hx, hy, itemSize);
+                inventoryRenderer.drawItemIcon(g2, held, hx, hy, itemSize);
             }
         }
         
@@ -521,26 +527,28 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         if (player.crouching) {
             g2.drawLine(centerX, spineBottomY, centerX - 8, spy + h); // Left
             g2.drawLine(centerX, spineBottomY, centerX + 8, spy + h); // Right
-            drawEquip(g2, equip[3], centerX, spineBottomY, 14, false); // PANTS
+            inventoryRenderer.drawEquippedItem(g2, equip[3], centerX, spineBottomY, 14, false); // PANTS
         } else {
             double walkCycle = (System.currentTimeMillis() % 400) / 400.0;
             int legOffset = (Math.abs(player.vx) > 0.5) ? (int)(Math.sin(walkCycle * Math.PI * 2) * 10) : 0;
             
             g2.drawLine(centerX, spineBottomY, centerX - 6 + legOffset, spy + h); // Left
             g2.drawLine(centerX, spineBottomY, centerX + 6 - legOffset, spy + h); // Right
-            drawEquip(g2, equip[3], centerX, spineBottomY, 14, false); // PANTS
-            drawEquip(g2, equip[4], centerX - 6 + legOffset, spy + h, 0, false); // SHOES L
-            drawEquip(g2, equip[4], centerX + 6 - legOffset, spy + h, 0, false); // SHOES R
+            inventoryRenderer.drawEquippedItem(g2, equip[3], centerX, spineBottomY, 14, false); // PANTS
+            inventoryRenderer.drawEquippedItem(g2, equip[4], centerX - 6 + legOffset, spy + h, 0, false); // SHOES L
+            inventoryRenderer.drawEquippedItem(g2, equip[4], centerX + 6 - legOffset, spy + h, 0, false); // SHOES R
         }
         
         g2.setStroke(new BasicStroke(1f));
         
         drawDroppedItems(g2);
         drawHUD(g2);
+        
         if (inventoryOpen) {
-            drawExpandedInventory(g2);
+            inventoryRenderer.drawInventory(g2, inv, mouseScreenX, mouseScreenY, player);
             drawDraggedItem(g2);
         }
+        
         if (deathMenuOpen) {
             drawDeathMenu(g2);
         } else if (escapeMenuOpen) {
@@ -628,44 +636,6 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         }
     }
 
-    private void drawStickmanPreview(Graphics2D g2, int cx, int cy) {
-        g2.setStroke(new BasicStroke(4f));
-        g2.setColor(Color.WHITE);
-        
-        int headSize = 24;
-        int spineLen = 60;
-        
-        Inventory inv = player.getInventory();
-        ItemStack[] equip = inv.getEquipment();
-        
-        // Back
-        drawEquip(g2, equip[5], cx, cy - spineLen + 20, 0, false);
-        
-        g2.setColor(Color.WHITE);
-        // Head
-        g2.drawOval(cx - headSize/2, cy - spineLen - headSize, headSize, headSize);
-        // Gear
-        drawEquip(g2, equip[0], cx, cy - spineLen - headSize, headSize, true); // Hat
-        drawEquip(g2, equip[1], cx, cy - spineLen - headSize, headSize, true); // Mask
-        
-        // Spine
-        g2.setColor(Color.WHITE);
-        g2.drawLine(cx, cy - spineLen, cx, cy);
-        drawEquip(g2, equip[2], cx, cy - spineLen, spineLen, false); // Shirt
-        
-        // Arms
-        g2.drawLine(cx, cy - spineLen + 10, cx - 25, cy - spineLen + 30);
-        g2.drawLine(cx, cy - spineLen + 10, cx + 25, cy - spineLen + 30);
-        
-        // Legs
-        g2.drawLine(cx, cy, cx - 20, cy + 40);
-        g2.drawLine(cx, cy, cx + 20, cy + 40);
-        drawEquip(g2, equip[3], cx, cy, 30, false); // Pants
-        drawEquip(g2, equip[4], cx - 20, cy + 40, 0, false);
-        drawEquip(g2, equip[4], cx + 20, cy + 40, 0, false);
-        
-        g2.setStroke(new BasicStroke(1f));
-    }
 
     private void drawDraggedItem(Graphics2D g2) {
         if (draggedStack != null && draggedStack.tile != Tile.AIR) {
@@ -711,150 +681,71 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     }
 
     private void drawHUD(Graphics2D g2) {
-        int slotSize = 44;
-        int padding  = 6;
-        int hotbarSize = 10;
-        int totalW   = hotbarSize * (slotSize + padding) - padding;
-        int sx0      = (getWidth() - totalW) / 2;
-        int y        = getHeight() - slotSize - 16;
-
-        // --- Status Bars (Health & Stamina) ---
-        int barWidth = totalW;
+        int totalW = 10 * (44 + 6) - 6;
+        int sx0 = (getWidth() - totalW) / 2;
+        int y = getHeight() - 44 - 16;
+        int heartY = y - 38;
         int barX = sx0;
-        // Health: 10 hearts (tracked as 20 half-hearts)
+
+        // Health & Food Bars
         int heartSize = 16;
         int heartPadding = 4;
-        int totalHearts = Math.max(1, player.maxHealthHalf / 2);
         int fullHearts = player.healthHalf / 2;
         int hasHalf = player.healthHalf % 2;
-
-        // Damage flash affects filled hearts only.
         float flash = Math.max(0f, Math.min(1f, player.damageFlash));
         int filledAlpha = (int) Math.min(255, 200 + flash * 55);
 
-        int heartY = y - 38;
-        for (int i = 0; i < totalHearts; i++) {
+        for (int i = 0; i < player.maxHealthHalf / 2; i++) {
             int hx = barX + i * (heartSize + heartPadding);
-
-            boolean isFull = i < fullHearts;
-            boolean isHalf = (i == fullHearts && hasHalf == 1);
-
-            // Base heart background.
-            // Empty/half hearts should be clearly "not full" -> make them mostly transparent.
-            if (isFull) {
-                g2.setColor(new Color(220, 40, 40, filledAlpha));
-            } else {
-                g2.setColor(new Color(60, 20, 20, 25));
-            }
-
+            if (i < fullHearts) g2.setColor(new Color(220, 40, 40, filledAlpha));
+            else g2.setColor(new Color(60, 20, 20, 25));
             g2.fillRoundRect(hx, heartY, heartSize, heartSize, 4, 4);
-
-            // Half-heart overlay: clip to left half.
-            if (isHalf) {
+            if (i == fullHearts && hasHalf == 1) {
                 Shape oldClip = g2.getClip();
                 g2.setClip(new Rectangle(hx, heartY, heartSize / 2, heartSize));
                 g2.setColor(new Color(220, 40, 40, filledAlpha));
                 g2.fillRoundRect(hx, heartY, heartSize, heartSize, 4, 4);
                 g2.setClip(oldClip);
             }
-
-            // Outline (keep it visible but subtle)
-            g2.setColor(new Color(255, 255, 255, isFull ? 90 : 55));
+            g2.setColor(new Color(255, 255, 255, 60));
             g2.drawRoundRect(hx, heartY, heartSize, heartSize, 4, 4);
         }
 
-        // --- Food Bar (Symmetric to health bar) ---
-        int totalFoodIcons = Math.max(1, player.maxFoodHalf / 2);
-        int fullFood = (int) (player.foodHalf / 2);
-        int hasHalfFood = (int) (player.foodHalf % 2);
-
-        for (int i = 0; i < totalFoodIcons; i++) {
-            // Moving from right to left
-            int fx = barX + barWidth - (i + 1) * (heartSize + heartPadding);
-            
-            boolean isFull = i < fullFood;
-            boolean isHalf = (i == fullFood && hasHalfFood == 1);
-
-            if (isFull) {
-                g2.setColor(new Color(220, 140, 40, 200)); // Orange-ish food color
-            } else {
-                g2.setColor(new Color(60, 40, 20, 25));
-            }
-
+        // Food Bar
+        int fullFood = player.foodHalf / 2;
+        int hasHalfFood = player.foodHalf % 2;
+        for (int i = 0; i < player.maxFoodHalf / 2; i++) {
+            int fx = barX + totalW - (i + 1) * (heartSize + heartPadding);
+            if (i < fullFood) g2.setColor(new Color(220, 140, 40, 200));
+            else g2.setColor(new Color(60, 40, 20, 25));
             g2.fillRoundRect(fx, heartY, heartSize, heartSize, 4, 4);
-
-            if (isHalf) {
+            if (i == fullFood && hasHalfFood == 1) {
                 Shape oldClip = g2.getClip();
-                // User wants left side to decrease first, so we fill the RIGHT half for a half-food icon.
                 g2.setClip(new Rectangle(fx + heartSize / 2, heartY, heartSize / 2, heartSize));
                 g2.setColor(new Color(220, 140, 40, 200));
                 g2.fillRoundRect(fx, heartY, heartSize, heartSize, 4, 4);
                 g2.setClip(oldClip);
             }
-
-            g2.setColor(new Color(255, 255, 255, isFull ? 90 : 55));
+            g2.setColor(new Color(255, 255, 255, 60));
             g2.drawRoundRect(fx, heartY, heartSize, heartSize, 4, 4);
         }
 
-        // Stamina bar
+        // Stamina
         int sBarH = 8;
         int sBarY = y - 18;
         g2.setColor(new Color(0, 0, 0, 120));
-        g2.fillRoundRect(barX, sBarY, barWidth, sBarH, 4, 4);
+        g2.fillRoundRect(barX, sBarY, totalW, sBarH, 4, 4);
         float staminaRatio = player.stamina / player.maxStamina;
-        if (player.isStaminaExhausted && staminaRatio < 0.3f) { // Red when exhausted and below 30%
-            g2.setColor(new Color(255, 60, 60, 200));
-        } else {
-            g2.setColor(staminaRatio > 0.2 ? new Color(40, 200, 40) : new Color(200, 150, 40));
-        }
-        g2.fillRoundRect(barX, sBarY, (int)(barWidth * staminaRatio), sBarH, 4, 4);
+        g2.setColor(staminaRatio > 0.2 ? new Color(40, 200, 40) : new Color(200, 150, 40));
+        g2.fillRoundRect(barX, sBarY, (int)(totalW * staminaRatio), sBarH, 4, 4);
         g2.setColor(Color.WHITE);
-        g2.drawRoundRect(barX, sBarY, barWidth, sBarH, 4, 4);
+        g2.drawRoundRect(barX, sBarY, totalW, sBarH, 4, 4);
 
-        // --- Hotbar ---
-        for (int i = 0; i < hotbarSize; i++) {
-            int sx = sx0 + i * (slotSize + padding);
-            boolean sel = (i == selectedSlot);
-            com.zomtopia.game.inventory.ItemStack stack = player.getInventory().getStack(i);
-
-            Color slotBg = sel ? new Color(255, 255, 255, 220) : (inventoryOpen ? new Color(100, 100, 100, 240) : new Color(0, 0, 0, 140));
-            g2.setColor(slotBg);
-            g2.fillRoundRect(sx, y, slotSize, slotSize, 8, 8);
-            g2.setColor(sel ? Color.YELLOW : (inventoryOpen ? Color.WHITE : Color.GRAY));
-            g2.setStroke(new BasicStroke(sel ? 2.5f : 1.5f));
-            g2.drawRoundRect(sx, y, slotSize, slotSize, 8, 8);
-            g2.setStroke(new BasicStroke(1f));
-
-            if (stack != null && stack.tile != Tile.AIR) {
-                int iconSize = Math.max(14, slotSize - 24);
-                int iconX = sx + (slotSize - iconSize) / 2;
-                int iconY = y + 6;
-
-                // Demo icon (same as inventory) + readable name under it.
-                drawInventoryDemoIcon(g2, stack, iconX, iconY, iconSize);
-
-                // Amount
-                g2.setColor(Color.WHITE);
-                g2.setFont(new Font("Arial", Font.BOLD, 10));
-                g2.drawString(String.valueOf(stack.amount), sx + 4, y + 16);
-
-                // Name (fit to slot)
-                g2.setColor(Color.WHITE);
-                g2.setFont(new Font("Arial", Font.BOLD, 9));
-                String name = getTileDisplayName(stack.tile);
-                if (stack.isBackground) name += " (ARKA)";
-
-                FontMetrics fm = g2.getFontMetrics();
-                while (name.length() > 1 && fm.stringWidth(name) > slotSize - 8) {
-                    name = name.substring(0, name.length() - 1);
-                }
-                g2.drawString(name, sx + 4, y + slotSize - 6);
-            }
-        }
+        inventoryRenderer.drawHotbar(g2, player.getInventory(), getWidth(), getHeight(), selectedSlot);
 
         // Controls
         g2.setColor(new Color(0, 0, 0, 150));
-        g2.fillRoundRect(8, 8, 240, 95, 8, 8);
+        g2.fillRoundRect(8, 8, 240, 110, 8, 8);
         g2.setColor(Color.WHITE);
         g2.setFont(new Font("Arial", Font.BOLD, 12));
         g2.drawString("WASD / ← →   Hareket & Zıpla", 16, 26);
@@ -862,6 +753,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         g2.drawString("Sol Tık (Basılı): Kır (Menzil: 3)", 16, 62);
         g2.drawString("Sağ Tık: Blok Yerleştir (Menzil: 4)", 16, 80);
         g2.drawString("Scroll / 1-5: Blok Seç", 16, 98);
+        g2.drawString("E: Envanter | Z: Sırala", 16, 116);
 
         drawTimeClock(g2);
     }
@@ -947,373 +839,11 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         return new Color(r, g, b, a);
     }
 
-    // Shared layout for the expanded inventory screen (render + hit testing).
-    private static class InventoryLayout {
-        int invX, invY, invW, invH;
-
-        int gridX, gridY;
-        int gridCols, gridRows;
-        int slotSize, slotPadding;
-
-        int rightX, rightW;
-        int previewX, previewY, previewW, previewH;
-
-        int eqSlotSize, eqPadding;
-        int eqX, eqY;
-    }
-
-    private InventoryLayout computeInventoryLayout() {
-        InventoryLayout l = new InventoryLayout();
-
-        int screenW = getWidth();
-        int screenH = getHeight();
-
-        int margin = 20;
-        l.invW = Math.max(520, Math.min(780, screenW - margin * 2));
-        l.invH = Math.max(360, Math.min(520, screenH - margin * 2));
-        l.invX = (screenW - l.invW) / 2;
-        l.invY = (screenH - l.invH) / 2;
-
-        // Layout tuning: left grid vs right equipment panel.
-        l.rightW = Math.max(190, Math.min(260, l.invW / 3));
-        int gap = 18;
-        int leftX = l.invX + 30;
-        l.rightX = l.invX + l.invW - l.rightW - 20;
-
-        int leftW = l.rightX - leftX - gap;
-
-        l.gridCols = 10;
-        l.gridRows = 4;
-        l.slotPadding = 6;
-
-        int gridAvailableW = leftW;
-        int maxSlotFromW = (gridAvailableW - l.slotPadding * (l.gridCols - 1)) / l.gridCols;
-
-        // Vertically reserve space for title + right panel preview/equipment.
-        int gridYTop = l.invY + 88;
-        int bottomSpace = 20;
-        int maxH = (l.invY + l.invH) - gridYTop - bottomSpace;
-        int maxSlotFromH = (maxH - l.slotPadding * (l.gridRows - 1)) / l.gridRows;
-
-        l.slotSize = Math.max(28, Math.min(48, Math.min(maxSlotFromW, maxSlotFromH)));
-
-        l.gridX = leftX;
-        l.gridY = gridYTop;
-
-        // Right panel: preview box on top, 2x3 equipment grid below.
-        l.previewX = l.rightX;
-        l.previewY = l.invY + 88;
-        l.previewW = l.rightW;
-
-        l.eqPadding = 10;
-        int eqCols = 2;
-        int eqRows = 3;
-        int eqGridW = l.rightW - l.eqPadding * 2;
-        int eqSlotCandidate = eqGridW / eqCols - l.eqPadding;
-        l.eqSlotSize = Math.max(28, Math.min(l.slotSize, Math.min(46, eqSlotCandidate)));
-
-        int eqGridH = l.eqSlotSize * eqRows + l.eqPadding * (eqRows - 1);
-
-        int eqYTop = l.previewY + 20; // preview starts at previewY, but we add 20 for header breathing room
-        int previewBottomBudget = (l.invY + l.invH) - eqGridH - 40; // bottom margin
-        l.previewH = Math.max(140, previewBottomBudget - eqYTop);
-
-        l.eqX = l.rightX + (l.rightW - (eqCols * l.eqSlotSize + (eqCols - 1) * l.eqPadding)) / 2;
-        l.eqY = l.previewY + l.previewH + 12;
-
-        return l;
-    }
-
-    private void drawEquip(Graphics2D g2, ItemStack stack, int x, int y, int size, boolean isCircle) {
-        if (stack == null || stack.tile == Tile.AIR) return;
-        g2.setColor(stack.tile.color.brighter());
-        if (isCircle) {
-            g2.fillOval(x - size/2 - 2, y - 2, size + 4, size + 4);
-        } else {
-            if (stack.tile.category == Tile.Category.SHIRT) {
-                g2.setStroke(new BasicStroke(4.5f));
-                g2.drawLine(x, y, x, y + size);
-                g2.setStroke(new BasicStroke(2.5f));
-            } else if (stack.tile.category == Tile.Category.BACK) {
-                g2.fillOval(x - 22, y - 5, 18, 25);
-                g2.fillOval(x + 4, y - 5, 18, 25);
-            } else if (stack.tile.category == Tile.Category.PANTS) {
-                g2.setStroke(new BasicStroke(4.5f));
-                g2.drawLine(x, y, x - 5, y + size);
-                g2.drawLine(x, y, x + 5, y + size);
-                g2.setStroke(new BasicStroke(2.5f));
-            } else if (stack.tile.category == Tile.Category.SHOES) {
-                g2.fillRoundRect(x - 5, y - 2, 10, 5, 2, 2);
-            }
-        }
-    }
-
-    private String getTileDisplayName(Tile tile) {
-        if (tile == null) return "";
-        switch (tile) {
-            case DIRT: return "TOPRAK";
-            case GRASS: return "OT";
-            case ROCK: return "TAŞ";
-            case WOOD: return "AĞAÇ";
-            case LEAVES: return "YAPRAK";
-            case BEDROCK: return "ZIRHLI";
-            case RED_SHIRT: return "KIRMIZI GÖMLEK";
-            case BLUE_HAT: return "MAVİ ŞAPKA";
-            case WINGS: return "KANATLAR";
-            case DARK_MASK: return "SİYAH MASKE";
-            case JEANS: return "JEAN";
-            case SNEAKERS: return "AYAKKABI";
-            case WOODEN_PICKAXE: return "TAHTA KAZMA";
-            case WOODEN_AXE: return "TAHTA BALTA";
-            case WOODEN_SWORD: return "TAHTA KILIÇ";
-            case WOODEN_SHOVEL: return "TAHTA KÜREK";
-            default: return tile.name();
-        }
-    }
-
-    private void drawInventoryDemoIcon(Graphics2D g2, ItemStack stack, int x, int y, int size) {
-        if (stack == null || stack.tile == Tile.AIR) return;
-        Tile tile = stack.tile;
-
-        Color base = stack.isBackground ? tile.color.darker().darker() : tile.color;
-        Color outline = base.darker();
-
-        int padding = Math.max(2, size / 10);
-        int inner = size - padding * 2;
-
-        // Background tiles (walkthrough) -> more faded demo icons
-        int alpha = stack.isBackground ? 140 : 220;
-        base = new Color(base.getRed(), base.getGreen(), base.getBlue(), alpha);
-
-        g2.setStroke(new BasicStroke(Math.max(1f, size / 14f)));
-
-        if (tile.category == Tile.Category.BLOCK) {
-            // Simple isometric-ish cube
-            g2.setColor(base);
-            g2.fillRect(x + padding, y + padding + inner/6, inner, inner - inner/6);
-            g2.setColor(base.darker());
-            g2.drawRect(x + padding, y + padding + inner/6, inner, inner - inner/6);
-            g2.setColor(base);
-            g2.fillRoundRect(x + padding, y + padding, inner, inner/3, 4, 4);
-            g2.setColor(outline);
-            g2.drawRoundRect(x + padding, y + padding, inner, inner/3, 4, 4);
-            g2.setColor(Color.WHITE);
-            g2.setFont(new Font("Arial", Font.BOLD, Math.max(8, size / 6)));
-            g2.drawString(String.valueOf(getTileDisplayName(tile).charAt(0)), x + padding + inner/3, y + padding + inner/2);
-            return;
-        }
-
-        // Wearables: simple category-specific glyphs
-        g2.setColor(base);
-        g2.setPaintMode();
-        switch (tile.category) {
-            case HAT:
-                // brim
-                g2.drawLine(x + padding, y + padding + inner/3, x + size - padding, y + padding + inner/3);
-                g2.setColor(base.brighter());
-                g2.fillRoundRect(x + padding, y + padding, inner, inner/4, 3, 3);
-                break;
-            case MASK:
-                g2.fillOval(x + padding, y + padding, inner, inner);
-                g2.setColor(Color.BLACK);
-                int eyeR = Math.max(2, inner / 10);
-                g2.fillOval(x + padding + inner/4, y + padding + inner/3, eyeR, eyeR);
-                g2.fillOval(x + padding + 3*inner/4 - eyeR, y + padding + inner/3, eyeR, eyeR);
-                break;
-            case SHIRT:
-                g2.fillRect(x + padding + inner/3, y + padding, inner/3, inner);
-                g2.fillRoundRect(x + padding, y + padding + inner/2, inner, inner/2, 6, 6);
-                break;
-            case PANTS:
-                g2.fillRoundRect(x + padding + inner/4, y + padding + inner/4, inner/2, inner/2 + inner/4, 6, 6);
-                // belt
-                g2.fillRect(x + padding + inner/4, y + padding + inner/4 - inner/10, inner/2, Math.max(2, inner/10));
-                break;
-            case SHOES:
-                g2.fillRoundRect(x + padding, y + padding + inner/2, inner/2, inner/3, 4, 4);
-                g2.fillRoundRect(x + padding + inner/2 - inner/8, y + padding + inner/2, inner/2, inner/3, 4, 4);
-                break;
-            case BACK:
-                int wingW = inner/2;
-                g2.setColor(base.brighter());
-                g2.fillPolygon(
-                    new int[]{x + padding, x + padding + wingW, x + padding + wingW/2},
-                    new int[]{y + padding + inner/2, y + padding + padding, y + padding + inner/2},
-                    3
-                );
-                g2.fillPolygon(
-                    new int[]{x + size - padding, x + size - padding - wingW, x + size - padding - wingW/2},
-                    new int[]{y + padding + inner/2, y + padding + padding, y + padding + inner/2},
-                    3
-                );
-                break;
-            case TOOL:
-                g2.setColor(new Color(100, 65, 30)); // Handle
-                int hw = Math.max(2, inner/8);
-                g2.fillRect(x + padding + inner/2 - hw/2, y + padding + inner/3, hw, inner - inner/3);
-                
-                g2.setColor(base); // Head
-                if (tile == Tile.WOODEN_PICKAXE) {
-                    g2.fillArc(x + padding, y + padding, inner, inner/2, 0, 180);
-                } else if (tile == Tile.WOODEN_AXE) {
-                    g2.fillRoundRect(x + padding + inner/2, y + padding, inner/2, inner/2, 4, 4);
-                } else if (tile == Tile.WOODEN_SWORD) {
-                    g2.fillRect(x + padding + inner/2 - hw, y + padding + inner/3, hw*2, hw); // Guard
-                    g2.fillRect(x + padding + inner/2 - hw/2, y + padding, hw, inner/3 + 2); // Blade
-                } else if (tile == Tile.WOODEN_SHOVEL) {
-                    g2.fillOval(x + padding + inner/4, y + padding, inner/2, inner/2);
-                }
-                break;
-            default:
-                // Fallback
-                g2.drawRect(x + padding, y + padding, inner, inner);
-                break;
-        }
-
-        g2.setColor(outline);
-        g2.drawRoundRect(x + padding, y + padding, inner, inner, 6, 6);
-    }
-
-    private void drawExpandedInventory(Graphics2D g2) {
-        InventoryLayout l = computeInventoryLayout();
-        
-        // Background
-        g2.setColor(new Color(30, 30, 30, 248));
-        g2.fillRoundRect(l.invX, l.invY, l.invW, l.invH, 20, 20);
-        g2.setColor(new Color(150, 150, 200, 150));
-        g2.setStroke(new BasicStroke(3f));
-        g2.drawRoundRect(l.invX, l.invY, l.invW, l.invH, 20, 20);
-        
-        Inventory inv = player.getInventory();
-        
-        // --- Left Section: Main Slots ---
-        int gridX = l.gridX;
-        int gridY = l.gridY;
-        g2.setColor(Color.WHITE);
-        g2.setFont(new Font("Arial", Font.BOLD, 18));
-        g2.drawString("ENVANTER", gridX, l.invY + 60);
-        
-        for (int i = 0; i < 40; i++) {
-            int row = i / l.gridCols;
-            int col = i % l.gridCols;
-            int sx = gridX + col * (l.slotSize + l.slotPadding);
-            int sy = gridY + row * (l.slotSize + l.slotPadding);
-            
-            ItemStack stack = inv.getSlots()[i];
-            
-            g2.setColor(new Color(40, 40, 45, 230));
-            g2.fillRoundRect(sx, sy, l.slotSize, l.slotSize, 10, 10);
-            g2.setColor(new Color(255, 255, 255, 20));
-            g2.setStroke(new BasicStroke(1.2f));
-            g2.drawRoundRect(sx, sy, l.slotSize, l.slotSize, 10, 10);
-            
-            if (stack != null && stack.tile != Tile.AIR) {
-                int iconSize = Math.max(16, l.slotSize - 30);
-                int iconX = sx + (l.slotSize - iconSize) / 2;
-                int iconY = sy + 6;
-
-                drawInventoryDemoIcon(g2, stack, iconX, iconY, iconSize);
-
-                g2.setColor(Color.WHITE);
-                g2.setFont(new Font("Arial", Font.BOLD, 11));
-                g2.drawString(String.valueOf(stack.amount), sx + 6, sy + 14);
-
-                // Name under icon (inside the slot).
-                g2.setFont(new Font("Arial", Font.BOLD, 9));
-                String name = getTileDisplayName(stack.tile);
-                if (stack.isBackground) name += " (ARKA)";
-                // Fit: simple truncation based on slot width.
-                int maxWidth = l.slotSize - 10;
-                FontMetrics fm = g2.getFontMetrics();
-                while (name.length() > 1 && fm.stringWidth(name) > maxWidth) {
-                    name = name.substring(0, name.length() - 1);
-                }
-                g2.drawString(name, sx + 5, sy + l.slotSize - 6);
-            }
-        }
-        
-        // --- Right Section: Character Preview Box ---
-        int previewX = l.previewX;
-        int previewY = l.previewY;
-        int previewW = l.previewW;
-        int previewH = l.previewH;
-
-        g2.setColor(new Color(45, 45, 45));
-        g2.fillRoundRect(previewX, previewY, previewW, previewH, 15, 15);
-        g2.setColor(new Color(80, 80, 100));
-        g2.drawRoundRect(previewX, previewY, previewW, previewH, 15, 15);
-        
-        // Draw Large Stickman in Preview
-        drawStickmanPreview(g2, previewX + previewW / 2, previewY + previewH / 2 - 10);
-        
-        // --- Equipment Slots (2 columns x 3 rows) ---
-        String[] eqLabels = {"BAŞLIK", "MASKE", "GÖVDE", "BACAK", "AYAK", "SIRT"};
-        
-        for (int i = 0; i < 6; i++) {
-            int row = i / 2;
-            int col = i % 2;
-            int sx = l.eqX + col * (l.eqSlotSize + l.eqPadding);
-            int sy = l.eqY + row * (l.eqSlotSize + l.eqPadding);
-            ItemStack stack = inv.getEquipment()[i];
-            
-            g2.setColor(new Color(60, 60, 70, 220));
-            g2.fillRoundRect(sx, sy, l.eqSlotSize, l.eqSlotSize, 12, 12);
-            g2.setColor(new Color(180, 180, 220, 120));
-            g2.drawRoundRect(sx, sy, l.eqSlotSize, l.eqSlotSize, 12, 12);
-            
-            g2.setColor(new Color(200, 200, 200, 150));
-            g2.setFont(new Font("Arial", Font.PLAIN, 10));
-            // Slot role label (when empty) lives near top-left.
-            if (stack == null || stack.tile == Tile.AIR) {
-                g2.drawString(eqLabels[i], sx + 6, sy + 14);
-            }
-            
-            if (stack != null && stack.tile != Tile.AIR) {
-                int iconSize = Math.max(14, l.eqSlotSize - 30);
-                int iconX = sx + (l.eqSlotSize - iconSize) / 2;
-                int iconY = sy + 6;
-
-                drawInventoryDemoIcon(g2, stack, iconX, iconY, iconSize);
-
-                // Name under icon inside the slot.
-                g2.setColor(Color.WHITE);
-                g2.setFont(new Font("Arial", Font.BOLD, 9));
-                String name = getTileDisplayName(stack.tile);
-                int maxWidth = l.eqSlotSize - 10;
-                FontMetrics fm = g2.getFontMetrics();
-                while (name.length() > 1 && fm.stringWidth(name) > maxWidth) {
-                    name = name.substring(0, name.length() - 1);
-                }
-                g2.drawString(name, sx + 5, sy + l.eqSlotSize - 6);
-            }
-        }
-    }
 
     // ──────────── INPUT ────────────
     private int getSlotAt(int mx, int my) {
         if (!inventoryOpen) return -1;
-
-        InventoryLayout l = computeInventoryLayout();
-
-        // Main inventory slots
-        for (int i = 0; i < 40; i++) {
-            int row = i / l.gridCols;
-            int col = i % l.gridCols;
-            int sx = l.gridX + col * (l.slotSize + l.slotPadding);
-            int sy = l.gridY + row * (l.slotSize + l.slotPadding);
-            if (mx >= sx && mx <= sx + l.slotSize && my >= sy && my <= sy + l.slotSize) return i;
-        }
-
-        // Equipment slots (2 columns x 3 rows)
-        for (int i = 0; i < 6; i++) {
-            int row = i / 2;
-            int col = i % 2;
-            int sx = l.eqX + col * (l.eqSlotSize + l.eqPadding);
-            int sy = l.eqY + row * (l.eqSlotSize + l.eqPadding);
-            if (mx >= sx && mx <= sx + l.eqSlotSize && my >= sy && my <= sy + l.eqSlotSize) return 100 + i;
-        }
-
-        return -1;
+        return inventoryRenderer.getSlotAt(mx, my);
     }
 
     private int getHotbarSlotAt(int mx, int my) {
@@ -1446,12 +976,32 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                     if (slot < 100) { // Standard inventory slot
                         draggedStack = inv.getSlots()[slot];
                         inv.getSlots()[slot] = null;
-                    } else { // Equipment slot
+                        draggedSourceIdx = slot;
+                    } else if (slot < 200) { // Equipment slot
                         int eqIdx = slot - 100;
                         draggedStack = inv.getEquipment()[eqIdx];
                         inv.getEquipment()[eqIdx] = null;
+                        draggedSourceIdx = slot;
+                    } else if (slot < 300) { // Crafting Grid
+                        int cIdx = slot - 200;
+                        draggedStack = inv.getCraftingGrid()[cIdx];
+                        inv.getCraftingGrid()[cIdx] = null;
+                        draggedSourceIdx = slot;
+                        inv.setCraftingResult(CraftingManager.checkRecipe(inv.getCraftingGrid()));
+                    } else if (slot == 300) { // Crafting Result
+                        draggedStack = inv.getCraftingResult();
+                        if (draggedStack != null) {
+                            // Consume crafting ingredients
+                            for (int i = 0; i < 4; i++) {
+                                if (inv.getCraftingGrid()[i] != null) {
+                                    inv.getCraftingGrid()[i].amount--;
+                                    if (inv.getCraftingGrid()[i].amount <= 0) inv.getCraftingGrid()[i] = null;
+                                }
+                            }
+                            inv.setCraftingResult(CraftingManager.checkRecipe(inv.getCraftingGrid()));
+                            draggedSourceIdx = -1; // Prevent returning to result slot
+                        }
                     }
-                    draggedSourceIdx = slot;
                     return;
                 }
 
@@ -1536,56 +1086,59 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             resetBreak();
         }
         
-        // Strict button check to avoid Mac modifier interference
-        // ONLY release if it's explicitly the Right Button (BUTTON3)
-        if (e.getButton() == MouseEvent.BUTTON3) {
-            rightHeld = false;
-        } else if (SwingUtilities.isRightMouseButton(e) && e.getButton() != 0) {
-            // Some Mac mice/trackpads use BUTTON1 + Meta, handle with care
-            rightHeld = false;
-        }
-
         if (draggedStack != null) {
             Inventory inv = player.getInventory();
             if (inventoryOpen) {
                 int targetIndex = getSlotAt(e.getX(), e.getY());
                 
                 if (targetIndex >= 0) {
-                    if (targetIndex < 100) {
-                        // Standard slot
+                    if (targetIndex < 100) { // Main slots
                         ItemStack temp = inv.getSlots()[targetIndex];
                         inv.getSlots()[targetIndex] = draggedStack;
-                        if (draggedSourceIdx < 100) { // Was from standard slot
-                            inv.getSlots()[draggedSourceIdx] = temp;
-                        } else { // Was from equipment slot
-                            inv.getEquipment()[draggedSourceIdx - 100] = temp;
+                        if (draggedSourceIdx != -1) {
+                            if (draggedSourceIdx < 100) inv.getSlots()[draggedSourceIdx] = temp;
+                            else if (draggedSourceIdx < 200) inv.getEquipment()[draggedSourceIdx - 100] = temp;
+                            else if (draggedSourceIdx < 300) {
+                                inv.getCraftingGrid()[draggedSourceIdx - 200] = temp;
+                                inv.setCraftingResult(CraftingManager.checkRecipe(inv.getCraftingGrid()));
+                            }
                         }
-                    } else {
-                        // Equipment slot
+                    } else if (targetIndex < 200) { // Equipment slots
                         int eqIdx = targetIndex - 100;
                         Tile.Category[] cats = {Tile.Category.HAT, Tile.Category.MASK, Tile.Category.SHIRT, Tile.Category.PANTS, Tile.Category.SHOES, Tile.Category.BACK};
                         if (draggedStack.tile.category == cats[eqIdx]) {
                             ItemStack temp = inv.getEquipment()[eqIdx];
                             inv.getEquipment()[eqIdx] = draggedStack;
-                            if (draggedSourceIdx < 100) { // Was from standard slot
-                                inv.getSlots()[draggedSourceIdx] = temp;
-                            } else { // Was from equipment slot
-                                inv.getEquipment()[draggedSourceIdx - 100] = temp;
+                            if (draggedSourceIdx != -1) {
+                                if (draggedSourceIdx < 100) inv.getSlots()[draggedSourceIdx] = temp;
+                                else if (draggedSourceIdx < 200) inv.getEquipment()[draggedSourceIdx - 100] = temp;
+                                else if (draggedSourceIdx < 300) {
+                                    inv.getCraftingGrid()[draggedSourceIdx - 200] = temp;
+                                    inv.setCraftingResult(CraftingManager.checkRecipe(inv.getCraftingGrid()));
+                                }
                             }
                         } else {
-                            // Return to source if not compatible
-                            if (draggedSourceIdx < 100) {
-                                inv.getSlots()[draggedSourceIdx] = draggedStack;
-                            } else {
-                                inv.getEquipment()[draggedSourceIdx - 100] = draggedStack;
+                            // Return to source
+                            if (draggedSourceIdx != -1) {
+                                if (draggedSourceIdx < 100) inv.getSlots()[draggedSourceIdx] = draggedStack;
+                                else if (draggedSourceIdx < 200) inv.getEquipment()[draggedSourceIdx - 100] = draggedStack;
+                                else if (draggedSourceIdx < 300) inv.getCraftingGrid()[draggedSourceIdx - 200] = draggedStack;
                             }
                         }
+                    } else if (targetIndex < 300) { // Crafting Grid
+                        int cIdx = targetIndex - 200;
+                        ItemStack temp = inv.getCraftingGrid()[cIdx];
+                        inv.getCraftingGrid()[cIdx] = draggedStack;
+                        if (draggedSourceIdx != -1) {
+                            if (draggedSourceIdx < 100) inv.getSlots()[draggedSourceIdx] = temp;
+                            else if (draggedSourceIdx < 200) inv.getEquipment()[draggedSourceIdx - 100] = temp;
+                            else if (draggedSourceIdx < 300) inv.getCraftingGrid()[draggedSourceIdx - 200] = temp;
+                        }
+                        inv.setCraftingResult(CraftingManager.checkRecipe(inv.getCraftingGrid()));
                     }
                 } else {
-                    // Drop item (outside expanded inventory area)
-                    if (draggedStack.tile != Tile.AIR && draggedStack.tile != Tile.BEDROCK) {
-                        droppedItems.add(new ItemEntity(getDropX(), getDropY(), draggedStack.tile, draggedStack.isBackground, draggedStack.amount));
-                    }
+                    // Drop to world
+                    droppedItems.add(new ItemEntity(getDropX(), getDropY(), draggedStack.tile, draggedStack.isBackground, draggedStack.amount));
                 }
             } else if (draggingFromHotbar) {
                 // Hotbar drag released outside expanded inventory.
@@ -1651,11 +1204,15 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         }
         if (e.getKeyCode() == KeyEvent.VK_E) {
             if (inventoryOpen && draggedStack != null) {
-                player.getInventory().setStack(draggedSourceIdx, draggedStack);
+                if (draggedSourceIdx != -1) player.getInventory().setStack(draggedSourceIdx, draggedStack);
                 draggedStack = null;
                 draggedSourceIdx = -1;
             }
             inventoryOpen = !inventoryOpen;
+        }
+        if (e.getKeyCode() == KeyEvent.VK_Z) {
+            player.getInventory().sort();
+            repaint();
         }
         if (e.getKeyCode() == KeyEvent.VK_Q) {
             if (inventoryOpen || escapeMenuOpen || deathMenuOpen) return;
