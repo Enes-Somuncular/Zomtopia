@@ -63,5 +63,24 @@ public class WorldGenerator {
                 }
             }
         }
+
+        // ---- Trees (Trunks and Leaves) ----
+        for (int x = 2; x < W - 2; x += 3 + rng.nextInt(6)) {
+            if (rng.nextBoolean()) {
+                int treeH = 4 + rng.nextInt(3);
+                // Trunk
+                for (int ty = 0; ty < treeH; ty++) {
+                    world.setFg(x, surf - 1 - ty, Tile.LOG);
+                }
+                // Canopy (simple 3x3)
+                for (int lx = -1; lx <= 1; lx++) {
+                    for (int ly = -1; ly <= 1; ly++) {
+                        if (world.getFg(x + lx, surf - treeH - ly) == Tile.AIR) {
+                            world.setFg(x + lx, surf - treeH - ly, Tile.LEAVES);
+                        }
+                    }
+                }
+            }
+        }
     }
 }

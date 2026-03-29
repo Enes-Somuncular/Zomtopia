@@ -12,7 +12,7 @@ public class Inventory {
     public Inventory() {
         this.slots = new ItemStack[40];
         this.equipment = new ItemStack[6];
-        this.craftingGrid = new ItemStack[4];
+        this.craftingGrid = new ItemStack[9];
         this.craftingResult = null;
         
         // Demo items for testing

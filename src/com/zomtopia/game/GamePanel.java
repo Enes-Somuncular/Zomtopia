@@ -19,6 +19,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 public class GamePanel extends JPanel implements KeyListener, MouseListener {
 
+
+
     private final World world;
     private final Player player;
     private final Camera camera;
@@ -33,6 +35,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     // Items and Inventory UI
     private final List<ItemEntity> droppedItems = new CopyOnWriteArrayList<>();
     private boolean inventoryOpen = false;
+    private boolean stationOpen = false; // If 3x3 grid is shown
     private boolean escapeMenuOpen = false;
     private boolean deathMenuOpen = false;
     private int draggedSourceIdx = -1;
@@ -554,7 +557,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         drawHUD(g2);
         
         if (inventoryOpen) {
-            inventoryRenderer.drawInventory(g2, inv, mouseScreenX, mouseScreenY, player);
+            inventoryRenderer.drawInventory(g2, inv, mouseScreenX, mouseScreenY, player, stationOpen);
             drawDraggedItem(g2);
         }
         
@@ -852,7 +855,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     // ──────────── INPUT ────────────
     private int getSlotAt(int mx, int my) {
         if (!inventoryOpen) return -1;
-        return inventoryRenderer.getSlotAt(mx, my);
+        return inventoryRenderer.getSlotAt(mx, my, stationOpen);
     }
 
     private int getHotbarSlotAt(int mx, int my) {
@@ -954,13 +957,14 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                             else if (slot < 300) inv.getCraftingGrid()[slot - 200] = null;
                             else if (slot == 300) {
                                 // Crafting result special: consume ingredients
-                                for (int i = 0; i < 4; i++) {
+                                int gridLen = stationOpen ? 9 : 4;
+                                for (int i = 0; i < gridLen; i++) {
                                     if (inv.getCraftingGrid()[i] != null) {
                                         inv.getCraftingGrid()[i].amount--;
                                         if (inv.getCraftingGrid()[i].amount <= 0) inv.getCraftingGrid()[i] = null;
                                     }
                                 }
-                                inv.setCraftingResult(CraftingManager.checkRecipe(inv.getCraftingGrid()));
+                                updateCrafting();
                             }
                             draggedSourceIdx = slot;
                         } else if (SwingUtilities.isRightMouseButton(e)) {
@@ -968,13 +972,14 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                             if (slot == 300) {
                                 // Crafting result special: consume 1 set of ingredients
                                 draggedStack = new ItemStack(source.tile, 1, source.isBackground);
-                                for (int i = 0; i < 4; i++) {
+                                int gridLen = stationOpen ? 9 : 4;
+                                for (int i = 0; i < gridLen; i++) {
                                     if (inv.getCraftingGrid()[i] != null) {
                                         inv.getCraftingGrid()[i].amount--;
                                         if (inv.getCraftingGrid()[i].amount <= 0) inv.getCraftingGrid()[i] = null;
                                     }
                                 }
-                                inv.setCraftingResult(CraftingManager.checkRecipe(inv.getCraftingGrid()));
+                                updateCrafting();
                             } else {
                                 draggedStack = new ItemStack(source.tile, 1, source.isBackground);
                                 source.amount--;
@@ -987,7 +992,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                             draggedSourceIdx = (slot == 300) ? -1 : slot;
                         }
                         if (slot >= 200 && slot < 300) {
-                            inv.setCraftingResult(CraftingManager.checkRecipe(inv.getCraftingGrid()));
+                            updateCrafting();
                         }
                     }
                 }
@@ -1044,7 +1049,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                             }
                         }
                         if (slot >= 200 && slot < 300) {
-                            inv.setCraftingResult(CraftingManager.checkRecipe(inv.getCraftingGrid()));
+                            updateCrafting();
                         }
                     }
                 } else {
@@ -1080,6 +1085,23 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             }
         }
         
+        if (SwingUtilities.isRightMouseButton(e) && !inventoryOpen && !deathMenuOpen) {
+            // Check for station interaction
+            int tx = camera.toTileX(e.getX());
+            int ty = camera.toTileY(e.getY());
+            double dist = distanceFromPlayerRectToTileCenter(tx, ty);
+            if (dist <= PLACE_RANGE_TILES * T) {
+                Tile fg = world.getFg(tx, ty);
+                Tile bg = world.getBg(tx, ty);
+                if (fg == Tile.CRAFTING_TABLE || bg == Tile.CRAFTING_TABLE) {
+                    stationOpen = true;
+                    inventoryOpen = true;
+                    repaint();
+                    return;
+                }
+            }
+        }
+
         if (SwingUtilities.isLeftMouseButton(e)) {
             leftHeld = true;
         } else if (SwingUtilities.isRightMouseButton(e)) {
@@ -1092,6 +1114,11 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             }
         }
         requestFocusInWindow();
+    }
+
+    private void updateCrafting() {
+        Inventory inv = player.getInventory();
+        inv.setCraftingResult(CraftingManager.checkRecipe(inv.getCraftingGrid(), stationOpen));
     }
 
     private void handleRightClickPlacement(int tx, int ty) {
@@ -1156,6 +1183,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                 draggedSourceIdx = -1;
             }
             inventoryOpen = !inventoryOpen;
+            if (inventoryOpen) stationOpen = false; // Toggle to personal crafting when opened by key
         }
         if (e.getKeyCode() == KeyEvent.VK_Z) {
             player.getInventory().sort();
