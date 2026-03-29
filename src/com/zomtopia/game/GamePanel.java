@@ -28,7 +28,7 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     private int selectedSlot = 0;
     private int breakX = -1, breakY = -1;
     private float breakProgress = 0;
-    private static final float BREAK_SPEED = 0.065f;
+    private static final float BASE_BREAK_SPEED = 0.065f;
 
     // Items and Inventory UI
     private final List<ItemEntity> droppedItems = new CopyOnWriteArrayList<>();
@@ -333,8 +333,17 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             if (targetTX != breakX || targetTY != breakY) {
                 breakX = targetTX; breakY = targetTY; breakProgress = 0;
             }
+            
+            // Calculate dynamic break speed based on tool
+            float currentBreakSpeed = BASE_BREAK_SPEED;
+            ItemStack held = player.getInventory().getStack(selectedSlot);
+            if (held != null && held.tile == Tile.IRON_PICKAXE) {
+                currentBreakSpeed *= 2.5f; // Iron is 2.5x faster
+            } else if (held != null && held.tile == Tile.WOODEN_PICKAXE) {
+                currentBreakSpeed *= 1.5f; // Wood is 1.5x faster than punch
+            }
 
-            breakProgress += BREAK_SPEED;
+            breakProgress += currentBreakSpeed;
 
             if (breakProgress >= 1.0f) {
                 // Break FG first, then BG on next hold
@@ -924,109 +933,148 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
 
         if (inventoryOpen) {
             int slot = getSlotAt(e.getX(), e.getY());
-            if (slot != -1) {
-                Inventory inv = player.getInventory();
+            Inventory inv = player.getInventory();
+            
+            // Toggle-based pickup/drop
+            if (draggedStack == null) {
+                // Picking up
+                if (slot != -1) {
+                    ItemStack source = null;
+                    if (slot < 100) source = inv.getSlots()[slot];
+                    else if (slot < 200) source = inv.getEquipment()[slot - 100];
+                    else if (slot < 300) source = inv.getCraftingGrid()[slot - 200];
+                    else if (slot == 300) source = inv.getCraftingResult();
 
-                // Right-click while inventory is open should not start a drag that removes items.
-                if (SwingUtilities.isRightMouseButton(e)) {
-                    if (slot < 100) { // Auto-equip from inventory to equipment
-                        ItemStack stack = inv.getSlots()[slot];
-                        if (stack != null && stack.tile != Tile.AIR && stack.tile.category != Tile.Category.BLOCK) {
-                            Tile.Category[] cats = {
-                                Tile.Category.HAT,
-                                Tile.Category.MASK,
-                                Tile.Category.SHIRT,
-                                Tile.Category.PANTS,
-                                Tile.Category.SHOES,
-                                Tile.Category.BACK
-                            };
-                            int eqIdx = -1;
-                            for (int i = 0; i < cats.length; i++) {
-                                if (stack.tile.category == cats[i]) {
-                                    eqIdx = i;
-                                    break;
+                    if (source != null && source.tile != Tile.AIR) {
+                        if (SwingUtilities.isLeftMouseButton(e)) {
+                            // Pickup WHOLE stack
+                            draggedStack = source;
+                            if (slot < 100) inv.getSlots()[slot] = null;
+                            else if (slot < 200) inv.getEquipment()[slot - 100] = null;
+                            else if (slot < 300) inv.getCraftingGrid()[slot - 200] = null;
+                            else if (slot == 300) {
+                                // Crafting result special: consume ingredients
+                                for (int i = 0; i < 4; i++) {
+                                    if (inv.getCraftingGrid()[i] != null) {
+                                        inv.getCraftingGrid()[i].amount--;
+                                        if (inv.getCraftingGrid()[i].amount <= 0) inv.getCraftingGrid()[i] = null;
+                                    }
+                                }
+                                inv.setCraftingResult(CraftingManager.checkRecipe(inv.getCraftingGrid()));
+                            }
+                            draggedSourceIdx = slot;
+                        } else if (SwingUtilities.isRightMouseButton(e)) {
+                            // Pickup ONE unit
+                            if (slot == 300) {
+                                // Crafting result special: consume 1 set of ingredients
+                                draggedStack = new ItemStack(source.tile, 1, source.isBackground);
+                                for (int i = 0; i < 4; i++) {
+                                    if (inv.getCraftingGrid()[i] != null) {
+                                        inv.getCraftingGrid()[i].amount--;
+                                        if (inv.getCraftingGrid()[i].amount <= 0) inv.getCraftingGrid()[i] = null;
+                                    }
+                                }
+                                inv.setCraftingResult(CraftingManager.checkRecipe(inv.getCraftingGrid()));
+                            } else {
+                                draggedStack = new ItemStack(source.tile, 1, source.isBackground);
+                                source.amount--;
+                                if (source.amount <= 0) {
+                                    if (slot < 100) inv.getSlots()[slot] = null;
+                                    else if (slot < 200) inv.getEquipment()[slot - 100] = null;
+                                    else if (slot < 300) inv.getCraftingGrid()[slot - 200] = null;
                                 }
                             }
-                            if (eqIdx != -1) {
-                                ItemStack current = inv.getEquipment()[eqIdx];
-                                if (current == null || current.tile == Tile.AIR) {
-                                    inv.getEquipment()[eqIdx] = new ItemStack(stack.tile, 1, false);
-                                    stack.amount -= 1;
-                                    if (stack.amount <= 0) inv.getSlots()[slot] = null;
-                                    repaint();
-                                    return;
-                                }
-                            }
+                            draggedSourceIdx = (slot == 300) ? -1 : slot;
                         }
-                    } else { // Auto-unequip from equipment back to inventory
-                        int eqIdx = slot - 100;
-                        ItemStack stack = inv.getEquipment()[eqIdx];
-                        if (stack != null && stack.tile != Tile.AIR) {
-                            if (inv.addItem(stack.tile, stack.amount, stack.isBackground)) {
-                                inv.getEquipment()[eqIdx] = null;
-                                repaint();
-                                return;
-                            }
-                        }
-                    }
-                }
-
-                // Only left click starts drag/drop from inventory.
-                if (SwingUtilities.isLeftMouseButton(e)) {
-                    if (slot < 100) { // Standard inventory slot
-                        draggedStack = inv.getSlots()[slot];
-                        inv.getSlots()[slot] = null;
-                        draggedSourceIdx = slot;
-                    } else if (slot < 200) { // Equipment slot
-                        int eqIdx = slot - 100;
-                        draggedStack = inv.getEquipment()[eqIdx];
-                        inv.getEquipment()[eqIdx] = null;
-                        draggedSourceIdx = slot;
-                    } else if (slot < 300) { // Crafting Grid
-                        int cIdx = slot - 200;
-                        draggedStack = inv.getCraftingGrid()[cIdx];
-                        inv.getCraftingGrid()[cIdx] = null;
-                        draggedSourceIdx = slot;
-                        inv.setCraftingResult(CraftingManager.checkRecipe(inv.getCraftingGrid()));
-                    } else if (slot == 300) { // Crafting Result
-                        draggedStack = inv.getCraftingResult();
-                        if (draggedStack != null) {
-                            // Consume crafting ingredients
-                            for (int i = 0; i < 4; i++) {
-                                if (inv.getCraftingGrid()[i] != null) {
-                                    inv.getCraftingGrid()[i].amount--;
-                                    if (inv.getCraftingGrid()[i].amount <= 0) inv.getCraftingGrid()[i] = null;
-                                }
-                            }
+                        if (slot >= 200 && slot < 300) {
                             inv.setCraftingResult(CraftingManager.checkRecipe(inv.getCraftingGrid()));
-                            draggedSourceIdx = -1; // Prevent returning to result slot
                         }
                     }
-                    return;
                 }
+            } else {
+                // Holding an item -> Placing/Dropping
+                if (slot != -1) {
+                    // In a slot
+                    ItemStack target = null;
+                    if (slot < 100) target = inv.getSlots()[slot];
+                    else if (slot < 200) target = inv.getEquipment()[slot - 100];
+                    else if (slot < 300) target = inv.getCraftingGrid()[slot - 200];
+                    
+                    // Check compatibility for equipment
+                    boolean compatible = true;
+                    if (slot >= 100 && slot < 200) {
+                        Tile.Category[] cats = {Tile.Category.HAT, Tile.Category.MASK, Tile.Category.SHIRT, Tile.Category.PANTS, Tile.Category.SHOES, Tile.Category.BACK};
+                        if (draggedStack.tile.category != cats[slot - 100]) compatible = false;
+                    }
 
-                // For right-click on equipment slot or non-left clicks: do nothing.
-                return;
+                    if (compatible) {
+                        if (SwingUtilities.isLeftMouseButton(e)) {
+                            // Drop ALL
+                            if (target == null || target.tile == Tile.AIR) {
+                                // Place in empty slot
+                                if (slot < 100) inv.getSlots()[slot] = draggedStack;
+                                else if (slot < 200) inv.getEquipment()[slot - 100] = draggedStack;
+                                else if (slot < 300) inv.getCraftingGrid()[slot - 200] = draggedStack;
+                                draggedStack = null;
+                            } else if (target.tile == draggedStack.tile && target.isBackground == draggedStack.isBackground) {
+                                // Merge
+                                target.amount += draggedStack.amount;
+                                draggedStack = null;
+                            } else {
+                                // Swap
+                                ItemStack temp = target;
+                                if (slot < 100) inv.getSlots()[slot] = draggedStack;
+                                else if (slot < 200) inv.getEquipment()[slot - 100] = draggedStack;
+                                else if (slot < 300) inv.getCraftingGrid()[slot - 200] = draggedStack;
+                                draggedStack = temp;
+                            }
+                        } else if (SwingUtilities.isRightMouseButton(e)) {
+                            // Drop ONE
+                            if (target == null || target.tile == Tile.AIR) {
+                                ItemStack one = new ItemStack(draggedStack.tile, 1, draggedStack.isBackground);
+                                if (slot < 100) inv.getSlots()[slot] = one;
+                                else if (slot < 200) inv.getEquipment()[slot - 100] = one;
+                                else if (slot < 300) inv.getCraftingGrid()[slot - 200] = one;
+                                draggedStack.amount--;
+                                if (draggedStack.amount <= 0) draggedStack = null;
+                            } else if (target.tile == draggedStack.tile && target.isBackground == draggedStack.isBackground) {
+                                target.amount++;
+                                draggedStack.amount--;
+                                if (draggedStack.amount <= 0) draggedStack = null;
+                            }
+                        }
+                        if (slot >= 200 && slot < 300) {
+                            inv.setCraftingResult(CraftingManager.checkRecipe(inv.getCraftingGrid()));
+                        }
+                    }
+                } else {
+                    // Outside inventory -> Drop to world
+                    if (SwingUtilities.isLeftMouseButton(e)) {
+                        droppedItems.add(new ItemEntity(getDropX(), getDropY(), draggedStack.tile, draggedStack.isBackground, draggedStack.amount));
+                        draggedStack = null;
+                    } else if (SwingUtilities.isRightMouseButton(e)) {
+                        droppedItems.add(new ItemEntity(getDropX(), getDropY(), draggedStack.tile, draggedStack.isBackground, 1));
+                        draggedStack.amount--;
+                        if (draggedStack.amount <= 0) draggedStack = null;
+                    }
+                }
             }
+            repaint();
+            return;
         }
 
         // Drag/drop from hotbar (outside expanded inventory):
-        // - Click + drag an item from hotbar
-        // - Drop outside the hotbar => spawn item in the world
-        // - Drop onto another hotbar slot => swap
         if (SwingUtilities.isLeftMouseButton(e) && !inventoryOpen && !deathMenuOpen) {
             int hb = getHotbarSlotAt(e.getX(), e.getY());
             if (hb != -1) {
                 Inventory inv = player.getInventory();
                 ItemStack stack = inv.getSlots()[hb];
                 if (stack != null && stack.tile != Tile.AIR) {
-                    // Drop 1 item from the stack (not the whole stack).
                     draggedStack = new ItemStack(stack.tile, 1, stack.isBackground);
                     stack.amount -= 1;
                     if (stack.amount <= 0) inv.getSlots()[hb] = null;
                     draggedHotbarIdx = hb;
                     draggingFromHotbar = true;
-                    // Do not start breaking/placing while dragging from hotbar.
                     return;
                 }
             }
@@ -1037,7 +1085,6 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         } else if (SwingUtilities.isRightMouseButton(e)) {
             rightHeld = true;
             if (!inventoryOpen) {
-                // Immediate auto-equip first; only place blocks if equip fails.
                 if (!tryAutoEquipFromHotbar() && isInRangePlace) {
                     handleRightClickPlacement(targetTX, targetTY);
                     lastPlacementTime = System.currentTimeMillis();
@@ -1047,21 +1094,15 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         requestFocusInWindow();
     }
 
-    private void handleRightClickPlacement(int tx, int ty) { // Modified to take tx, ty
+    private void handleRightClickPlacement(int tx, int ty) {
         double reachDistPx = distanceFromPlayerRectToTileCenter(tx, ty);
-
         if (reachDistPx <= PLACE_RANGE_TILES * World.TILE_SIZE) { 
-            com.zomtopia.game.inventory.ItemStack selStack = player.getInventory().getStack(selectedSlot);
+            ItemStack selStack = player.getInventory().getStack(selectedSlot);
             if (selStack != null && selStack.amount > 0) {
-                // Equippable items should not be placed into the world as blocks.
                 if (selStack.tile.category != Tile.Category.BLOCK) return;
-
-                // Animasyon tetikle
                 player.startPunch();
-
                 Rectangle playerRect = new Rectangle((int) player.x, (int) player.y, Player.W, Player.H);
-                Rectangle tileRect   = new Rectangle(tx * World.TILE_SIZE, ty * World.TILE_SIZE,
-                                                      World.TILE_SIZE, World.TILE_SIZE);
+                Rectangle tileRect   = new Rectangle(tx * World.TILE_SIZE, ty * World.TILE_SIZE, World.TILE_SIZE, World.TILE_SIZE);
                 if (!playerRect.intersects(tileRect)) {
                     if (selStack.isBackground) {
                         if (world.getBg(tx, ty) == Tile.AIR) {
@@ -1069,7 +1110,6 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
                             player.getInventory().removeItem(selStack.tile, true);
                         }
                     } else {
-                        // Foreground blocks ONLY place on Foreground AIR
                         if (world.getFg(tx, ty) == Tile.AIR) {
                             world.setFg(tx, ty, selStack.tile);
                             player.getInventory().removeItem(selStack.tile, false);
@@ -1081,104 +1121,9 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
     }
 
     @Override public void mouseReleased(MouseEvent e) {
-        if (SwingUtilities.isLeftMouseButton(e)) {
-            leftHeld = false;
-            resetBreak();
-        }
-        
-        if (draggedStack != null) {
-            Inventory inv = player.getInventory();
-            if (inventoryOpen) {
-                int targetIndex = getSlotAt(e.getX(), e.getY());
-                
-                if (targetIndex >= 0) {
-                    if (targetIndex < 100) { // Main slots
-                        ItemStack temp = inv.getSlots()[targetIndex];
-                        inv.getSlots()[targetIndex] = draggedStack;
-                        if (draggedSourceIdx != -1) {
-                            if (draggedSourceIdx < 100) inv.getSlots()[draggedSourceIdx] = temp;
-                            else if (draggedSourceIdx < 200) inv.getEquipment()[draggedSourceIdx - 100] = temp;
-                            else if (draggedSourceIdx < 300) {
-                                inv.getCraftingGrid()[draggedSourceIdx - 200] = temp;
-                                inv.setCraftingResult(CraftingManager.checkRecipe(inv.getCraftingGrid()));
-                            }
-                        }
-                    } else if (targetIndex < 200) { // Equipment slots
-                        int eqIdx = targetIndex - 100;
-                        Tile.Category[] cats = {Tile.Category.HAT, Tile.Category.MASK, Tile.Category.SHIRT, Tile.Category.PANTS, Tile.Category.SHOES, Tile.Category.BACK};
-                        if (draggedStack.tile.category == cats[eqIdx]) {
-                            ItemStack temp = inv.getEquipment()[eqIdx];
-                            inv.getEquipment()[eqIdx] = draggedStack;
-                            if (draggedSourceIdx != -1) {
-                                if (draggedSourceIdx < 100) inv.getSlots()[draggedSourceIdx] = temp;
-                                else if (draggedSourceIdx < 200) inv.getEquipment()[draggedSourceIdx - 100] = temp;
-                                else if (draggedSourceIdx < 300) {
-                                    inv.getCraftingGrid()[draggedSourceIdx - 200] = temp;
-                                    inv.setCraftingResult(CraftingManager.checkRecipe(inv.getCraftingGrid()));
-                                }
-                            }
-                        } else {
-                            // Return to source
-                            if (draggedSourceIdx != -1) {
-                                if (draggedSourceIdx < 100) inv.getSlots()[draggedSourceIdx] = draggedStack;
-                                else if (draggedSourceIdx < 200) inv.getEquipment()[draggedSourceIdx - 100] = draggedStack;
-                                else if (draggedSourceIdx < 300) inv.getCraftingGrid()[draggedSourceIdx - 200] = draggedStack;
-                            }
-                        }
-                    } else if (targetIndex < 300) { // Crafting Grid
-                        int cIdx = targetIndex - 200;
-                        ItemStack temp = inv.getCraftingGrid()[cIdx];
-                        inv.getCraftingGrid()[cIdx] = draggedStack;
-                        if (draggedSourceIdx != -1) {
-                            if (draggedSourceIdx < 100) inv.getSlots()[draggedSourceIdx] = temp;
-                            else if (draggedSourceIdx < 200) inv.getEquipment()[draggedSourceIdx - 100] = temp;
-                            else if (draggedSourceIdx < 300) inv.getCraftingGrid()[draggedSourceIdx - 200] = temp;
-                        }
-                        inv.setCraftingResult(CraftingManager.checkRecipe(inv.getCraftingGrid()));
-                    }
-                } else {
-                    // Drop to world
-                    droppedItems.add(new ItemEntity(getDropX(), getDropY(), draggedStack.tile, draggedStack.isBackground, draggedStack.amount));
-                }
-            } else if (draggingFromHotbar) {
-                // Hotbar drag released outside expanded inventory.
-                int hbTarget = getHotbarSlotAt(e.getX(), e.getY());
-                if (hbTarget != -1) {
-                    // Merge into compatible hotbar slot; otherwise keep stacks unchanged.
-                    ItemStack target = inv.getSlots()[hbTarget];
-                    if (target == null) {
-                        inv.getSlots()[hbTarget] = draggedStack;
-                    } else if (target.tile == draggedStack.tile && target.isBackground == draggedStack.isBackground) {
-                        target.amount += draggedStack.amount;
-                    } else {
-                        // Return the 1 item back to source stack.
-                        ItemStack source = inv.getSlots()[draggedHotbarIdx];
-                        if (source == null) {
-                            inv.getSlots()[draggedHotbarIdx] = draggedStack;
-                        } else {
-                            source.amount += draggedStack.amount;
-                        }
-                    }
-                } else {
-                    // Drop to world.
-                    if (draggedStack.tile != Tile.AIR && draggedStack.tile != Tile.BEDROCK) {
-                        droppedItems.add(new ItemEntity(getDropX(), getDropY(), draggedStack.tile, draggedStack.isBackground, draggedStack.amount));
-                    }
-                }
-            } else {
-                // Fallback: drop to world (shouldn't happen often).
-                if (draggedStack.tile != Tile.AIR && draggedStack.tile != Tile.BEDROCK) {
-                    droppedItems.add(new ItemEntity(getDropX(), getDropY(), draggedStack.tile, draggedStack.isBackground, draggedStack.amount));
-                }
-            }
-
-            draggedStack = null;
-            draggedSourceIdx = -1;
-            draggingFromHotbar = false;
-            draggedHotbarIdx = -1;
-        }
-
-        if (SwingUtilities.isLeftMouseButton(e))  { leftHeld  = false; resetBreak(); }
+        leftHeld = false;
+        resetBreak();
+        if (SwingUtilities.isLeftMouseButton(e))  { leftHeld  = false; }
         if (SwingUtilities.isRightMouseButton(e)) { rightHeld = false; }
     }
     @Override public void mouseClicked(MouseEvent e) {}
@@ -1204,7 +1149,9 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         }
         if (e.getKeyCode() == KeyEvent.VK_E) {
             if (inventoryOpen && draggedStack != null) {
-                if (draggedSourceIdx != -1) player.getInventory().setStack(draggedSourceIdx, draggedStack);
+                if (!player.getInventory().addItem(draggedStack.tile, draggedStack.amount, draggedStack.isBackground)) {
+                    droppedItems.add(new ItemEntity(getDropX(), getDropY(), draggedStack.tile, draggedStack.isBackground, draggedStack.amount));
+                }
                 draggedStack = null;
                 draggedSourceIdx = -1;
             }
@@ -1216,13 +1163,12 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         }
         if (e.getKeyCode() == KeyEvent.VK_Q) {
             if (inventoryOpen || escapeMenuOpen || deathMenuOpen) return;
-            com.zomtopia.game.inventory.ItemStack stack = player.getInventory().getStack(selectedSlot);
-            if (stack != null && stack.tile != com.zomtopia.game.world.Tile.AIR) {
+            ItemStack stack = player.getInventory().getStack(selectedSlot);
+            if (stack != null && stack.tile != Tile.AIR) {
                 ItemEntity item = new ItemEntity(getDropX(), getDropY(), stack.tile, stack.isBackground, 1);
                 item.vx = player.facingLeft ? -4.5 : 4.5;
                 item.vy = -3;
                 droppedItems.add(item);
-                
                 stack.amount--;
                 if (stack.amount <= 0) {
                     player.getInventory().setStack(selectedSlot, null);
