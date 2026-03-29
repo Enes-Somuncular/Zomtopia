@@ -47,5 +47,21 @@ public class WorldGenerator {
                 for (int ty = cy; ty < cy + ch && ty < H - 1; ty++)
                     world.setFg(tx, ty, Tile.AIR);  // BG stays → visible cave wall
         }
+
+        // ---- Iron Ore Patches ----
+        for (int i = 0; i < 20; i++) {
+            int ix = rng.nextInt(W);
+            int iy = surf + 8 + rng.nextInt(15);
+            // Simple 2x2 or 1x1 patches
+            int size = 1 + rng.nextInt(2);
+            for (int ox = 0; ox < size && ix + ox < W; ox++) {
+                for (int oy = 0; oy < size && iy + oy < H - 1; oy++) {
+                    if (world.getFg(ix + ox, iy + oy) == Tile.ROCK) {
+                        world.setFg(ix + ox, iy + oy, Tile.IRON_ORE);
+                        world.setBg(ix + ox, iy + oy, Tile.IRON_ORE);
+                    }
+                }
+            }
+        }
     }
 }

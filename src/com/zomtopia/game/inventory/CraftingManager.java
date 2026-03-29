@@ -20,6 +20,12 @@ public class CraftingManager {
         
         // Example: 1 Grass -> 1 Leaves
         addRecipe(new Tile[]{Tile.GRASS, null, null, null}, Tile.LEAVES, 1);
+        
+        // Iron Ore Hub: 4 Iron Ore -> 1 Iron Ingot
+        addRecipe(new Tile[]{Tile.IRON_ORE, Tile.IRON_ORE, Tile.IRON_ORE, Tile.IRON_ORE}, Tile.IRON_INGOT, 1);
+        
+        // Iron Tool: 4 Iron Ingot -> 1 Iron Pickaxe
+        addRecipe(new Tile[]{Tile.IRON_INGOT, Tile.IRON_INGOT, Tile.IRON_INGOT, Tile.IRON_INGOT}, Tile.IRON_PICKAXE, 1);
     }
 
     private static void addRecipe(Tile[] grid, Tile result, int amount) {

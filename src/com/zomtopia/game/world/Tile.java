@@ -10,6 +10,7 @@ public enum Tile {
     WOOD    (4, new Color(120, 75, 30),        true,  Category.BLOCK),
     LEAVES  (5, new Color(40, 120, 40, 200),   true,  Category.BLOCK),
     BEDROCK (6, new Color(50, 50, 50),         true,  Category.BLOCK),
+    IRON_ORE(7, new Color(130, 110, 100),      true,  Category.BLOCK),
     
     // Wearables
     RED_SHIRT(10, new Color(200, 50, 50),     false, Category.SHIRT),
@@ -18,14 +19,16 @@ public enum Tile {
     DARK_MASK(13, new Color(30, 30, 30),       false, Category.MASK),
     JEANS    (14, new Color(50, 80, 150),      false, Category.PANTS),
     SNEAKERS (15, new Color(220, 220, 220),    false, Category.SHOES),
+    IRON_INGOT(16, new Color(210, 210, 210),   false, Category.MATERIAL),
 
     // Tools
     WOODEN_PICKAXE(20, new Color(139, 90, 43), false, Category.TOOL),
     WOODEN_AXE    (21, new Color(139, 90, 43), false, Category.TOOL),
     WOODEN_SWORD  (22, new Color(139, 90, 43), false, Category.TOOL),
-    WOODEN_SHOVEL (23, new Color(139, 90, 43), false, Category.TOOL);
+    WOODEN_SHOVEL (23, new Color(139, 90, 43), false, Category.TOOL),
+    IRON_PICKAXE  (24, new Color(180, 180, 180), false, Category.TOOL);
 
-    public enum Category { BLOCK, HAT, MASK, SHIRT, PANTS, SHOES, BACK, TOOL }
+    public enum Category { BLOCK, HAT, MASK, SHIRT, PANTS, SHOES, BACK, TOOL, MATERIAL }
 
     public final int id;
     public final Color color;
