@@ -1126,12 +1126,18 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         if (reachDistPx <= PLACE_RANGE_TILES * World.TILE_SIZE) { 
             ItemStack selStack = player.getInventory().getStack(selectedSlot);
             if (selStack != null && selStack.amount > 0) {
-                if (selStack.tile.category != Tile.Category.BLOCK) return;
+                // Allow both BLOCK and STATION categories
+                if (selStack.tile.category != Tile.Category.BLOCK && selStack.tile.category != Tile.Category.STATION) return;
+                
                 player.startPunch();
                 Rectangle playerRect = new Rectangle((int) player.x, (int) player.y, Player.W, Player.H);
                 Rectangle tileRect   = new Rectangle(tx * World.TILE_SIZE, ty * World.TILE_SIZE, World.TILE_SIZE, World.TILE_SIZE);
+                
                 if (!playerRect.intersects(tileRect)) {
-                    if (selStack.isBackground) {
+                    // Force STATION to background layer, others respect their flag
+                    boolean forceBackground = (selStack.tile.category == Tile.Category.STATION);
+                    
+                    if (selStack.isBackground || forceBackground) {
                         if (world.getBg(tx, ty) == Tile.AIR) {
                             world.setBg(tx, ty, selStack.tile);
                             player.getInventory().removeItem(selStack.tile, true);
