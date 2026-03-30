@@ -938,7 +938,17 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
             int slot = getSlotAt(e.getX(), e.getY());
             Inventory inv = player.getInventory();
             
+            // Shift-Click handling
+            if (e.isShiftDown() && draggedStack == null) {
+                if (slot != -1) {
+                    handleShiftClick(slot);
+                    repaint();
+                }
+                return;
+            }
+
             // Toggle-based pickup/drop
+
             if (draggedStack == null) {
                 // Picking up
                 if (slot != -1) {
@@ -1116,7 +1126,96 @@ public class GamePanel extends JPanel implements KeyListener, MouseListener {
         requestFocusInWindow();
     }
 
+    private void handleShiftClick(int slot) {
+        Inventory inv = player.getInventory();
+        ItemStack stack = null;
+        if (slot < 100) stack = inv.getSlots()[slot];
+        else if (slot < 200) stack = inv.getEquipment()[slot - 100];
+        else if (slot < 300) stack = inv.getCraftingGrid()[slot - 200];
+        else if (slot == 300) stack = inv.getCraftingResult();
+
+        if (stack == null || stack.tile == Tile.AIR) return;
+
+        // 1. From Crafting Result
+        if (slot == 300) {
+            if (inv.addItem(stack.tile, stack.amount, stack.isBackground)) {
+                int gridLen = stationOpen ? 9 : 4;
+                for (int i = 0; i < gridLen; i++) {
+                    if (inv.getCraftingGrid()[i] != null) {
+                        inv.getCraftingGrid()[i].amount--;
+                        if (inv.getCraftingGrid()[i].amount <= 0) inv.getCraftingGrid()[i] = null;
+                    }
+                }
+                updateCrafting();
+            }
+            return;
+        }
+
+        // 2. From Equipment or Crafting Grid -> move to Main Inventory
+        if (slot >= 100 && slot < 300) {
+            if (inv.addItem(stack.tile, stack.amount, stack.isBackground)) {
+                if (slot < 200) inv.getEquipment()[slot - 100] = null;
+                else inv.getCraftingGrid()[slot - 200] = null;
+                updateCrafting();
+            }
+            return;
+        }
+
+        // 3. From Main Inventory / Hotbar
+        if (slot < 100) {
+            // A. Try to Equip if wearable
+            Tile.Category[] cats = {Tile.Category.HAT, Tile.Category.MASK, Tile.Category.SHIRT, Tile.Category.PANTS, Tile.Category.SHOES, Tile.Category.BACK};
+            for (int i = 0; i < cats.length; i++) {
+                if (stack.tile.category == cats[i]) {
+                    if (inv.getEquipment()[i] == null) {
+                        inv.getEquipment()[i] = stack;
+                        inv.getSlots()[slot] = null;
+                        return;
+                    }
+                }
+            }
+
+            // B. Try to move to Crafting Grid if open
+            if (inventoryOpen) {
+                int gridLen = stationOpen ? 9 : 4;
+                for (int i = 0; i < gridLen; i++) {
+                    if (inv.getCraftingGrid()[i] == null) {
+                        inv.getCraftingGrid()[i] = new ItemStack(stack.tile, 1, stack.isBackground);
+                        stack.amount--;
+                        if (stack.amount <= 0) inv.getSlots()[slot] = null;
+                        updateCrafting();
+                        return;
+                    }
+                }
+            }
+
+            // C. Quick-move between Hotbar and Storage
+            boolean isHotbar = (slot < 10);
+            int start = isHotbar ? 10 : 0;
+            int end = isHotbar ? 40 : 10;
+            
+            // First try to merge
+            for (int i = start; i < end; i++) {
+                ItemStack target = inv.getSlots()[i];
+                if (target != null && target.tile == stack.tile && target.isBackground == stack.isBackground) {
+                    target.amount += stack.amount;
+                    inv.getSlots()[slot] = null;
+                    return;
+                }
+            }
+            // Then find empty
+            for (int i = start; i < end; i++) {
+                if (inv.getSlots()[i] == null) {
+                    inv.getSlots()[i] = stack;
+                    inv.getSlots()[slot] = null;
+                    return;
+                }
+            }
+        }
+    }
+
     private void updateCrafting() {
+
         Inventory inv = player.getInventory();
         inv.setCraftingResult(CraftingManager.checkRecipe(inv.getCraftingGrid(), stationOpen));
     }
